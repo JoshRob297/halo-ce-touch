@@ -44,6 +44,11 @@ boolean network_game_server_reset_to_pregame(
 void network_game_server_pause_countdown(
 	struct network_game_server *server,
 	boolean pause_countdown);
+/* port: the players a game a host runs asks for (network_test.c): a host
+given a map list asks for one, so it starts with nobody on it */
+void network_game_server_port_set_minimum_players(
+	struct network_game_server *server,
+	long minimum_players);
 void network_game_generate_join_game_token(
 	byte *join_token);
 void network_game_server_kick_machine(

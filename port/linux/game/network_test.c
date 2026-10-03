@@ -1003,6 +1003,11 @@ void network_test_update(
 
 				snprintf(path, sizeof(path), "levels\\test\\%s\\%s", network_test.map_name, network_test.map_name);
 				network_game_server_change_map_name(global_network_game_server_get(), path);
+				/* port: a host that names maps plays on its own too, so a server
+				the list is given starts the game it advertises with nobody on it
+				(the countdown needs the players a game asks for, and the Xbox
+				game's own is two) */
+				network_game_server_port_set_minimum_players(global_network_game_server_get(), 1);
 				/* the variant, as picking the game settings does */
 				{
 					char variant_name[64];

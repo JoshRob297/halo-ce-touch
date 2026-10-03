@@ -3835,6 +3835,18 @@ void network_game_server_port_set_settings(
 		network_game_server_port_settings_apply(server);
 }
 
+/* port: the players a game a host runs asks for (network_test.c). The
+Xbox game's own is two (network_game_server_setup_game_from_playlist),
+which a dedicated host never reaches with only its own player: it sits
+in the lobby and the map list it was given never moves on. */
+void network_game_server_port_set_minimum_players(
+	struct network_game_server *server,
+	long minimum_players)
+{
+	if (server)
+		server->game.minimum_players = (char)PIN(minimum_players, 1, MAXIMUM_NETWORK_PLAYER_COUNT);
+}
+
 /* port: a gametype's PC options: the menus' (player_ui_set_game_variant_options)
 when it is the menus' gametype, else its defaults */
 static void network_game_server_variant_options(
