@@ -67,6 +67,9 @@ symbols in this file:
 #include "scenario/scenario.h"
 #include "tag_files/tag_groups.h"
 #include "units/units.h"
+#ifdef HALO_ANDROID
+#include "../../port/android/guest/runtime/guest_host.h"
+#endif
 
 /* ---------- constants */
 
@@ -260,6 +263,16 @@ void cheats_load(
 
 		fclose(file);
 	}
+#ifdef HALO_ANDROID
+    else
+    {
+        /* Built-in equivalents of the prototype cheats.txt button shortcuts. */
+        csstrcpy(cheat_strings[_gamepad_analog_button_a], "cheat_teleport_to_camera");
+        csstrcpy(cheat_strings[_gamepad_analog_button_b], "set cheat_deathless_player 1");
+        csstrcpy(cheat_strings[_gamepad_analog_button_x], "set cheat_deathless_player 0");
+        csstrcpy(cheat_strings[_gamepad_analog_button_y], "cheat_all_weapons");
+    }
+#endif
 
 	return;
 }
@@ -310,6 +323,12 @@ void cheats_initialize_for_new_map(
 	void)
 {
 	cheats_load();
+#ifdef HALO_ANDROID
+    {
+        int i;
+        for (i = 10; i < 16; i++) host_touch_cheat_sync(i, 0);
+    }
+#endif
 
 	return;
 }
@@ -470,3 +489,50 @@ void cheat_all_vehicles(
 
 	return;
 }
+
+#ifdef HALO_ANDROID
+/* UI commands cross the host boundary; only the game thread touches game data. */
+void android_touch_cheats_update(void)
+{
+    boolean *flags[] = { &cheat.deathless_player, &cheat.jetpack,
+        &cheat.infinite_ammo, &cheat.bump_possession, &cheat.super_jump,
+        &cheat.reflexive_damage_effects, &cheat.medusa, &cheat.omnipotent,
+        &cheat.controller_enabled, &cheat.bottomless_clip };
+    int commands[16];
+    unsigned int pending = host_touch_cheats_read(commands);
+    long player_index = local_player_get_player_index(0);
+    boolean available = !network_game_distributed_client() &&
+        player_index != NONE && player_get(player_index)->unit_index != NONE;
+    int i;
+
+    cheats_network_client_enforce();
+    for (i = 0; i < 16; i++)
+    {
+        if (pending & (1u << i))
+        {
+            if (!available)
+                host_touch_cheat_result(i, -1);
+            else
+            {
+                int result = 1;
+                if (i < 10) { *flags[i] = commands[i] != 0; result = *flags[i]; }
+                else switch (i)
+                {
+                case 10: cheat_active_camouflage_local_player(0); break;
+                case 11: cheat_active_camouflage(); break;
+                case 12: cheat_all_powerups(); break;
+                case 13: cheat_all_vehicles(); break;
+                case 14: cheat_all_weapons(); break;
+                case 15:
+                    if (observer_get_camera(0)->location.cluster_index == NONE) result = -1;
+                    else cheat_teleport_to_camera();
+                    break;
+                }
+                host_touch_cheat_result(i, result);
+            }
+        }
+        if (i < 10) host_touch_cheat_sync(i, *flags[i]);
+        else if (!available) host_touch_cheat_sync(i, 0);
+    }
+}
+#endif
