@@ -110,6 +110,10 @@ static struct
 	real pickup_time;
 	char pickup_weapon[64];
 	long score_to_win;
+	/* the minutes a game is given, 0 to keep the variant's own limit
+	(a built-in variant's time limit is 0, so a game with no score it
+	reaches never ends and the host never moves on) */
+	long time_limit;
 	long logged_time;
 } network_test;
 
@@ -226,6 +230,7 @@ static void network_test_read_settings(
 	snprintf(network_test.pickup_weapon, sizeof(network_test.pickup_weapon), "%s",
 		config_string("debug.network_test_pickup_weapon"));
 	network_test.score_to_win = (long)config_integer("debug.network_test_score");
+	network_test.time_limit = (long)config_integer("debug.network_test_time");
 	if (network_test.mode != _network_test_off)
 		platform_log("network test: %s", setting);
 }
@@ -1010,6 +1015,10 @@ void network_test_update(
 				/* debug.network_test_score: a short game, to test the next */
 				if (network_test.score_to_win > 0)
 					variant.universal_variant.score_to_win = network_test.score_to_win;
+				/* debug.network_test_time: a game that ends by itself, so the
+				map list moves on even where nobody reaches the score */
+				if (network_test.time_limit > 0)
+					variant.universal_variant.time_limit = (short)network_test.time_limit;
 				player_ui_set_game_variant(&variant);
 				network_game_server_change_game_variant(global_network_game_server_get(), &variant);
 				network_test.map_set = TRUE;
