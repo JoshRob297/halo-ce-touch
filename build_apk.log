@@ -1,0 +1,30 @@
+[0/1490] ANDROID SDL3
+[1474/1490] ANDROID CC build/android/guest/obj/port/android/guest/runtime/guest_thread.o
+In file included from port/android/guest/runtime/guest_thread.c:20:
+build/android/third_party/musl-1.2.5/src/internal/stdio_impl.h:70:16: warning: target does not support 'protected' visibility; using 'default' [-Wunsupported-visibility]
+   70 | __attribute__((visibility("protected")))
+      |                ^
+build/android/third_party/musl-1.2.5/src/internal/stdio_impl.h:70:16: warning: target does not support 'protected' visibility; using 'default' [-Wunsupported-visibility]
+port/android/guest/runtime/guest_thread.c:46:9: warning: 'DEFAULT_STACK_SIZE' macro redefined [-Wmacro-redefined]
+   46 | #define DEFAULT_STACK_SIZE (1024 * 1024)
+      |         ^
+build/android/third_party/musl-1.2.5/src/internal/pthread_impl.h:197:9: note: previous definition is here
+  197 | #define DEFAULT_STACK_SIZE 131072
+      |         ^
+3 warnings generated.
+[1483/1490] ANDROID CC build/android/guest/obj/port/third_party/expat/xmltok.o
+[1485/1490] ANDROID STAGE build/android/jniLibs/arm64-v8a/libSDL3.so
+[1486/1490] ANDROID HOST LINK build/android/jniLibs/arm64-v8a/libmain.so
+[1487/1490] ANDROID CC build/android/guest/obj/guest/gen/hud_hires_assets.o
+[1488/1490] ANDROID LINK build/android/halo_guest.elf
+[1489/1490] ANDROID STAGE build/android/assets/halo_guest.elf
+[1489/1490] ANDROID GRADLE port/android/app/build/outputs/apk/debug/app-debug.apk
+Checking the license for package Android SDK Build-Tools 36 in /home/sistver/Android/Sdk/licenses
+License for package Android SDK Build-Tools 36 accepted.
+Preparing "Install Android SDK Build-Tools 36 v.36.0.0".
+"Install Android SDK Build-Tools 36 v.36.0.0" ready.
+Installing Android SDK Build-Tools 36 in /home/sistver/Android/Sdk/build-tools/36.0.0
+"Install Android SDK Build-Tools 36 v.36.0.0" complete.
+"Install Android SDK Build-Tools 36 v.36.0.0" finished.
+[=========                              ] 25%                                   Note: Some input files use or override a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
