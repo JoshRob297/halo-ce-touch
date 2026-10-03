@@ -83,6 +83,10 @@ static struct
 {
 	boolean checked;
 	short mode;
+	/* the maps to rotate, ";" between them, each "map[:variant,variant...]"
+	(debug.network_test's value past "host:"), and which one is current */
+	char spec[2048];
+	short spec_index;
 	char map_name[64];
 	char variant_name[64];
 	/* ... the variant of this game, of variant_name's list; and the seconds
@@ -134,6 +138,69 @@ static boolean network_test_variant(
 	return TRUE;
 }
 
+/* the index'th map of the list, NULL past its end */
+static char const *network_test_spec_entry(
+	short index)
+{
+	char const *entry = network_test.spec;
+
+	for (; index > 0 && entry; index--)
+	{
+		entry = strchr(entry, ';');
+		if (entry)
+			entry++;
+	}
+	return (entry && *entry) ? entry : NULL;
+}
+
+/* sets map_name and variant_name to the map spec_index names */
+static void network_test_select_map(
+	void)
+{
+	char const *entry = network_test_spec_entry(network_test.spec_index);
+	char const *colon;
+	size_t length;
+
+	if (!entry)
+		return;
+	length = strcspn(entry, ":;");
+	snprintf(network_test.map_name, sizeof(network_test.map_name), "%.*s", (int)length, entry);
+	snprintf(network_test.variant_name, sizeof(network_test.variant_name), "slayer");
+	colon = entry + length;
+	if (*colon == ':')
+	{
+		length = strcspn(colon + 1, ";");
+		if (length > 0)
+			snprintf(network_test.variant_name, sizeof(network_test.variant_name), "%.*s",
+				(int)length, colon + 1);
+	}
+}
+
+/* whether a game follows the one running: the list wraps to its first map,
+so a host that names maps keeps rotating for as long as it runs */
+static boolean network_test_has_next_game(
+	void)
+{
+	return network_test.spec[0] != 0;
+}
+
+/* steps to the game after the current one: the next variant of this map,
+else the first variant of the next map (the first again past the last) */
+static void network_test_next_game(
+	void)
+{
+	if (network_test_variant(network_test.variant_index + 1, NULL, 0))
+	{
+		network_test.variant_index++;
+		return;
+	}
+	network_test.variant_index = 0;
+	network_test.spec_index++;
+	if (!network_test_spec_entry(network_test.spec_index))
+		network_test.spec_index = 0;
+	network_test_select_map();
+}
+
 static void network_test_read_settings(
 	void)
 {
@@ -142,17 +209,10 @@ static void network_test_read_settings(
 	network_test.checked = TRUE;
 	if (!strncmp(setting, "host:", 5) && setting[5])
 	{
-		char *colon;
-
 		network_test.mode = _network_test_host;
-		snprintf(network_test.map_name, sizeof(network_test.map_name), "%s", setting + 5);
-		snprintf(network_test.variant_name, sizeof(network_test.variant_name), "slayer");
-		colon = strchr(network_test.map_name, ':');
-		if (colon)
-		{
-			*colon = 0;
-			snprintf(network_test.variant_name, sizeof(network_test.variant_name), "%s", colon + 1);
-		}
+		snprintf(network_test.spec, sizeof(network_test.spec), "%s", setting + 5);
+		network_test.spec_index = 0;
+		network_test_select_map();
 	}
 	else if (!strcmp(setting, "join"))
 	{
@@ -866,7 +926,7 @@ void network_test_update(
 		if (game_engine_showing_postgame() && global_network_game_server_get())
 		{
 			network_test.postgame_seconds += seconds;
-			if (network_test.postgame_seconds >= 3.0f && network_test_variant(network_test.variant_index + 1, NULL, 0))
+			if (network_test.postgame_seconds >= 3.0f && network_test_has_next_game())
 			{
 				network_test.postgame_seconds = 0.0f;
 				network_game_server_reset_to_pregame(global_network_game_server_get());
@@ -891,9 +951,10 @@ void network_test_update(
 	{
 		network_test.game_over = FALSE;
 		network_test.postgame_seconds = 0.0f;
-		if (network_test_variant(network_test.variant_index + 1, NULL, 0))
+		if (network_test_has_next_game())
 		{
-			network_test.variant_index++;
+			network_test_next_game();
+			main_set_multiplayer_map_name(network_test.map_name);
 			network_test.started = FALSE;
 			network_test.map_set = FALSE;
 			network_test.setup_seconds = 0.0f;
@@ -902,7 +963,8 @@ void network_test_update(
 			holds the countdown) */
 			if (global_network_game_server_get())
 				network_game_server_pause_countdown(global_network_game_server_get(), FALSE);
-			platform_log("network test: the next game");
+			platform_log("network test: the next game (%s, %s)", network_test.map_name,
+				network_test.variant_name);
 		}
 	}
 
@@ -942,7 +1004,8 @@ void network_test_update(
 
 					network_test_variant(network_test.variant_index, variant_name, sizeof(variant_name));
 					variant = *game_engine_get_variant_by_name(&variant, variant_name);
-					platform_log("network test: game %d, %s", network_test.variant_index + 1, variant_name);
+					platform_log("network test: game %d, %s on %s", network_test.variant_index + 1,
+						variant_name, network_test.map_name);
 				}
 				/* debug.network_test_score: a short game, to test the next */
 				if (network_test.score_to_win > 0)
