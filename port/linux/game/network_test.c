@@ -1015,11 +1015,20 @@ void network_test_update(
 				/* debug.network_test_score: a short game, to test the next */
 				if (network_test.score_to_win > 0)
 					variant.universal_variant.score_to_win = network_test.score_to_win;
-				/* debug.network_test_time: a game that ends by itself, so the
-				map list moves on even where nobody reaches the score */
-				if (network_test.time_limit > 0)
-					variant.universal_variant.time_limit = (short)network_test.time_limit;
 				player_ui_set_game_variant(&variant);
+				/* debug.network_test_time: the gametype's options carry the time
+				limit and a built-in variant's own is none (0), so a game whose
+				score nobody reaches never ends and the list stands still. The
+				call above reset the options to the variant's, so they are given
+				here, before the server reads them for its clients. */
+				{
+					struct game_variant_options options;
+
+					game_variant_options_default(&variant, &options);
+					if (network_test.time_limit > 0)
+						options.time_limit = (short)network_test.time_limit;
+					player_ui_set_game_variant_options(&options);
+				}
 				network_game_server_change_game_variant(global_network_game_server_get(), &variant);
 				network_test.map_set = TRUE;
 			}
