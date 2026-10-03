@@ -12,6 +12,28 @@ Windows and Android. The decompilation is of the Xbox build 2342
 The port starts from the decompilation of [bnunu/halo-1](https://github.com/bnunu/halo-1).
 That project is a fork of [punpckhdq/halo](https://github.com/punpckhdq/halo).
 
+## Touch Controls & Android Enhancements (JoshRob297 Fork)
+
+This fork merges modern upstream improvements (Netcode Version 11, high-res HUD, 128-player multiplayer scoreboard, PC menus, performance fixes) with editable touchscreen controls, bug fixes, and dedicated server automation features.
+
+### Features Added
+- **On-Screen Multi-Touch Controls**: Configurable layout with draggable/resizable controls, layout export/import via Android Storage Access Framework (`.halolayout`).
+- **Gyroscope Aiming**: Integrated motion sensor aiming alongside touch look.
+- **Haptic Rumble**: Device vibration tied directly to player damage and events.
+- **Netcode v11 Compatibility**: Fully compatible with the latest desktop/native netcode v11 multiplayer protocol and up to 128 players.
+- **Dedicated Server Map Rotation & Automated Start**: Server harness (`debug.network_test`) updated to support sequential map list rotation separated by `;` and automated countdown (`minimum_players = 1`), allowing dedicated servers to keep continuous map rotations.
+- **Desktop Target Preservation**: Maintained Linux and Windows toolchains and build targets alongside Android, preventing codebase divergence.
+
+### Bug Fixes & Code Corrections
+- **Pointer Aim Initialization Fix**: Corrected an uninitialized variable memory bug in `halo_linux_mouse_look` (`port/linux/src/xinput_sdl.c`) where the touch accumulation logic previously corrupted uninitialized desktop look registers under non-Android builds.
+- **Gametype Options Time Limit Integration**: Properly routed `debug.network_test_time` through `game_variant_options` and the PC menu handler rather than raw variant headers, allowing games to properly expire and rotate to the next level when unattended.
+
+### Credits & Acknowledgments
+- **Original Decompilation**: [bnunu/halo-1](https://github.com/bnunu/halo-1) & [punpckhdq/halo](https://github.com/punpckhdq/halo).
+- **Universal Port (Upstream)**: [cybersecurity/halo-ce-universal](https://github.com/cybersecurity/halo-ce-universal) - Native platform layer (Linux, Windows, Android), netcode rewrite (lockstep to distributed Valorant/Ares style simulation), high-resolution assets, and PC menus.
+- **Touch Controls Architecture**: [theLlamaNet/halo-ce-android](https://github.com/theLlamaNet/halo-ce-android) by theLlamaNet / FulGer - Created the multi-touch overlay, gyroscope driver, layout serialization, and touch-to-gamepad translation bridge.
+- **Fork Orchestration & Fixes**: [JoshRob297/halo-ce-touch](https://github.com/JoshRob297/halo-ce-touch) - Netcode v11 merge, desktop target fixups, automated server map rotation harness, and PAL Spanish asset integration.
+
 ## Download
 
 GitHub Actions builds the game for each commit. These links download the
