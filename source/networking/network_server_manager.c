@@ -3491,14 +3491,42 @@ can join the game in progress. */
 boolean server_ok_to_countdown(
 	struct network_game_server *server)
 {
-	if (server_has_enough_machines(server) &&
-		(!server_needs_more_teams(server) || server_players_on_one_machine(server)) &&
-		(server->game.player_count >= server->game.minimum_players || server_players_on_one_machine(server)))
+	/* port: the conditions are named, not chained in the test, so that the
+	log below can say which one holds the countdown. A machine without a
+	player is left out of it: a machine is in the game before its player is,
+	and waiting for a player on each one held a lobby that a joining machine
+	had emptied (upstream's own fix, kept here) */
+	boolean enough_machines = server_has_enough_machines(server);
+	boolean teams_full = !server_needs_more_teams(server) || server_players_on_one_machine(server);
+	boolean enough_players = server->game.player_count >= server->game.minimum_players || server_players_on_one_machine(server);
+	boolean ok = enough_machines && teams_full && enough_players;
+
+	/* port: a host nobody watches leaves no trace of why its lobby does not
+	start. The reason, logged as it changes (network_event is the engine's
+	log, the host's debug.txt): a word per condition that fails */
 	{
-		return TRUE;
+		static int last_reason = -1;
+		int reason = (enough_machines ? 0 : 1) | (teams_full ? 0 : 2) | (enough_players ? 0 : 4);
+
+		if (reason != last_reason)
+		{
+			last_reason = reason;
+			network_event(
+				"lobby countdown %s: machines %s, teams %s, players %ld of %ld, paused %s%s%s%s%s",
+				ok ? "ready" : "held",
+				enough_machines ? "yes" : "NO",
+				teams_full ? "yes" : "NO",
+				(long)server->game.player_count, (long)server->game.minimum_players,
+				server->countdown_state.paused ? "yes" : "no",
+				reason ? " (failed:" : "",
+				(reason & 1) ? " machines" : "",
+				(reason & 2) ? " teams" : "",
+				(reason & 4) ? " players" : "",
+				reason ? ")" : "");
+		}
 	}
 
-	return FALSE;
+	return ok;
 }
 
 void network_game_server_invalidate_network_machine(
