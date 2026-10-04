@@ -113,3 +113,16 @@ void host_gl_wait_frame(unsigned int slot);
 void host_android_path(int which, char *buffer, unsigned int size);
 
 #endif
+
+/* ---------- movies (port/android/host/host_movie.c)
+
+The port has no Bink decoder, so the movies (port/linux/src/bink_null.c) are
+played by the Android side: the guest asks for one here and the host plays the
+transcoded file over the game. The handle is the movie's 1-based id. */
+int host_movie_open(const char *name);
+unsigned long host_movie_width(int movie);
+unsigned long host_movie_height(int movie);
+unsigned long host_movie_frames(int movie);
+unsigned long host_movie_frame(int movie);
+int host_movie_finished(int movie);
+void host_movie_close(int movie);
