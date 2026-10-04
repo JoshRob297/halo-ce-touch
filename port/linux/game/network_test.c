@@ -1486,6 +1486,8 @@ void network_test_update(
 				network_test.map_set = FALSE;
 				network_test.setup_seconds = 0.0f;
 				network_test.menu_seconds = 0.0f;
+				network_test.player_added = FALSE;
+				
 				/* (as picking the next game's map does: the scores' map choice
 				holds the countdown) */
 				if (global_network_game_server_get())
@@ -1728,9 +1730,14 @@ void network_test_update(
 			}
 			if (network_test.setup_seconds >= network_test.start_delay)
 			{
+				static real last_start_request;
 				network_test.started = TRUE;
-				network_game_client_request_immediate_start();
-				platform_log("network test: starting the game");
+				if (network_test.setup_seconds - last_start_request >= 3.0f)
+				{
+					last_start_request = network_test.setup_seconds;
+					network_game_client_request_immediate_start();
+					platform_log("network test: starting the game (request sent)");
+				}
 			}
 		}
 		break;
