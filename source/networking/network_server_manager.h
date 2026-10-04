@@ -65,6 +65,10 @@ given plays on its own: one) */
 void network_game_server_port_set_minimum_machines(
 	struct network_game_server *server,
 	long minimum_machines);
+/* port: why a game a host asks for is not starting: the server's state,
+its countdown and the conditions it waits for (network_test.c) */
+void network_game_server_port_log_state(
+	struct network_game_server *server);
 void network_game_generate_join_game_token(
 	byte *join_token);
 void network_game_server_kick_machine(
