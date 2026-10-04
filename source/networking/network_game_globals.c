@@ -518,7 +518,7 @@ boolean network_game_client_start_frame(
 		main_goto_main_menu();
 		result = TRUE;
 	}
-	else
+	else if (global_network_game_client)
 	{
 		result = network_game_client_idle(global_network_game_client);
 		if (result)
@@ -570,6 +570,19 @@ boolean network_game_client_start_frame(
 		{
 			network_event("internal networking error [network_game_client_idle() failed]");
 		}
+	}
+	else
+	{
+		/* port: the client was disposed while the connection still named a
+		network game. Its player left (or the map changed, and the menu that
+		removed it does not clear the connection), and main still calls this
+		frame: the idle above would read the null client, which the assert in
+		network_game_client_idle stops in neither a release nor a debug build
+		(release_assert_failed only logs). End the game as a started client's
+		end does (0 is _game_connection_local), at the menu. */
+		game_connection_set(0);
+		main_goto_main_menu();
+		result = TRUE;
 	}
 
 	return result;
