@@ -121,6 +121,13 @@ static struct
 	long logged_time;
 } network_test;
 
+/* port: the variant the host last gave a game, so a lobby a variant with
+teams has held (fewer than two players left after the map list picked it,
+and server_needs_more_teams has no timeout) can be moved to the map's first
+variant without teams: network_test_update, below */
+static struct game_variant network_test_set_variant;
+static boolean network_test_set_variant_valid;
+
 /* the variant at the index of the list (copied to name), FALSE past its end */
 static boolean network_test_variant(
 	short index,
@@ -1105,7 +1112,52 @@ void network_test_update(
 				}
 				network_game_server_change_game_variant(global_network_game_server_get(), &variant);
 				network_test.map_set = TRUE;
+				network_test_set_variant = variant;
+				network_test_set_variant_valid = TRUE;
 			}
+			/* port: a variant with teams holds the lobby while fewer than two players
+			are on: the map list picked it with players on, they left, and
+			server_needs_more_teams has no timeout, so the countdown never runs and the
+			list stands still (the immediate start the host asks for is applied only
+			when the countdown's conditions hold). The map's first variant without teams
+			plays instead, and the list's own pick comes back with players */
+			{
+				struct network_game_server *server = global_network_game_server_get();
+
+				if (server && network_test_set_variant_valid &&
+					network_test_set_variant.universal_variant.teams &&
+					network_game_server_get_state(server, NULL) == 0 &&
+					network_game_server_port_player_count(server) < 2)
+				{
+					long index;
+					char candidate[64];
+
+					for (index = 0; network_test_variant(index, candidate, sizeof(candidate)); index++)
+					{
+						struct game_variant other =
+							*game_engine_get_variant_by_name(&network_test_set_variant, candidate);
+
+						if (!other.universal_variant.teams)
+						{
+							struct game_variant_options options;
+
+							game_variant_options_default(&other, &options);
+							if (network_test.time_limit > 0)
+								options.time_limit = (short)network_test.time_limit;
+							player_ui_set_game_variant(&other);
+							player_ui_set_game_variant_options(&options);
+							network_game_server_change_game_variant(server, &other);
+							network_test_set_variant = other;
+							platform_log(
+								"network test: %s on %s (a teams variant held the lobby with %ld players)",
+								candidate, network_test.map_name,
+								(long)network_game_server_port_player_count(server));
+							break;
+						}
+					}
+				}
+			}
+
 			if (!network_test.player_added && network_test.setup_seconds >= 2.0f && global_network_game_client_get())
 				network_test.player_added = network_game_client_add_player(global_network_game_client_get(), 0);
 			if (network_test.setup_seconds >= network_test.start_delay)
