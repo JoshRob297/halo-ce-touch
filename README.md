@@ -14,7 +14,23 @@ That project is a fork of [punpckhdq/halo](https://github.com/punpckhdq/halo).
 
 ## Touch Controls & Android Enhancements (JoshRob297 Fork)
 
-This fork merges modern upstream improvements (Netcode Version 11, high-res HUD, 128-player multiplayer scoreboard, PC menus, performance fixes) with editable touchscreen controls, bug fixes, and dedicated server automation features.
+This fork is [cybersecurity/halo-ce-universal](https://github.com/cybersecurity/halo-ce-universal)
+at `c3adcfe5` (netcode version 11) with the touchscreen the upstream port
+leaves out, taken from [theLlamaNet/halo-ce-android](https://github.com/theLlamaNet/halo-ce-android),
+and a map rotation for a host that runs on its own. The Linux and Windows
+targets, the build tooling and the netcode are upstream's: the dedicated
+server builds from this same tree.
+
+### Upstream pieces it inherits
+- **Server browser of public internet games** (`c04765d7`): the multiplayer
+  menu lists the games other machines host, with a lobby protocol of its own
+  (`port/linux/src/p2p_lobby.c`).
+- **Unload the menu map before a client's next game** (`601a4c1f`): the
+  client held the menu map while it loaded the next game, which the smaller
+  devices ran out of memory on, and crashed as a game ended.
+- **Free quit players' slots** (`133d6a5d`) and **survive kills and joins in
+  departed players' slots** (`809408c6`): a player who left kept its slot,
+  which refused every later join to a game that went on.
 
 ### Features Added
 - **On-Screen Multi-Touch Controls**: Configurable layout with draggable/resizable controls, layout export/import via Android Storage Access Framework (`.halolayout`).
@@ -27,6 +43,7 @@ This fork merges modern upstream improvements (Netcode Version 11, high-res HUD,
 ### Bug Fixes & Code Corrections
 - **Pointer Aim Initialization Fix**: Corrected an uninitialized variable memory bug in `halo_linux_mouse_look` (`port/linux/src/xinput_sdl.c`) where the touch accumulation logic previously corrupted uninitialized desktop look registers under non-Android builds.
 - **Gametype Options Time Limit Integration**: Properly routed `debug.network_test_time` through `game_variant_options` and the PC menu handler rather than raw variant headers, allowing games to properly expire and rotate to the next level when unattended.
+- **Queued Join Recovery**: A machine that asked to join as a game ended was left behind the player the server held, and the server refused every later join (`network_game_add_player() failed`) for good. The host now drops those joins when its next game starts (`network_game_server_port_clear_queued_players`).
 
 ### Credits & Acknowledgments
 - **Original Decompilation**: [bnunu/halo-1](https://github.com/bnunu/halo-1) & [punpckhdq/halo](https://github.com/punpckhdq/halo).

@@ -92,8 +92,23 @@ with the positions on the Xbox controller:
 | Create | back | |
 
 The controller gets the rumble. The back gesture of Android is the B
-button. A Bluetooth or USB keyboard operates as on Linux. The screen does
-not accept touch input.
+button. A Bluetooth or USB keyboard operates as on Linux.
+
+### Touch controls
+
+This fork ([JoshRob297/halo-ce-touch](https://github.com/JoshRob297/halo-ce-touch))
+adds the touchscreen the port left out: an overlay of the sticks and the
+buttons above, which the game reads as controller 0, beside a gamepad
+that takes a higher port.
+
+- Drag a control to move it, and its handles to resize it. The overlay's
+  options keep the layout and the sensitivity of the touch look and of the
+  gyroscope, in `files/touch_layout.txt` in the app's data folder.
+- The **gyroscope** adds its turn to the touch look while it is on.
+- **Export** a layout as a `.halolayout` file, or **import** one, from the
+  overlay's options, to move one between devices or share it.
+- The device **rumble** follows player 1's effects while a game runs, on
+  its own toggle and independently of the imported Xbox profile.
 
 ## Settings
 
@@ -310,6 +325,7 @@ assembly of the port is necessary:
 - The device must let the app reserve the fixed guest addresses, from
   `0x80000000` to approximately `0x89000000`. If the addresses are not
   available, the app shows a message.
-- The game does not accept touch input. Use a controller or a keyboard.
+- The game accepts touch input (above): the overlay is controller 0, and a
+  gamepad connected alongside it takes a higher port.
 - Kernels with 16 KB pages (a developer option of Android 15) do not
   operate. The Xbox memory uses 4 KB pages.
