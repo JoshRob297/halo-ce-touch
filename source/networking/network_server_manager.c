@@ -5070,22 +5070,41 @@ static boolean network_game_server_have_all_machines_have_precached(
 
 		if (network_game_server_client_machine_is_joined_to_game(server, machine))
 		{
-			boolean client_has_precached;
-
 			/* port: a machine with no player is joining or leaving, and one
 			still downloading the map does not have it. Neither holds the
 			start. A download joins the game in progress once it is done. */
 			if (!network_game_server_machine_has_players(server, machine->machine_index) ||
 				map_share_machine_needs_map(machine->machine_index))
 				continue;
-			client_has_precached = TEST_FLAG(
-				server->client_machines[i].flags,
-				_network_client_machine_precached_bit);
-
-			if (!client_has_precached)
+			/* port: the local machine in a headless dedicated server has no
+			display or loading screen: it is always precached once the map is set */
+			if (network_game_server_client_machine_is_local(server, machine))
 			{
-				all_machines_have_precached = FALSE;
-				break;
+				SET_FLAG(server->client_machines[i].flags, _network_client_machine_precached_bit, TRUE);
+			}
+
+			{
+				boolean client_has_precached = TEST_FLAG(
+					server->client_machines[i].flags,
+					_network_client_machine_precached_bit);
+
+				if (!client_has_precached)
+				{
+					/* port: do not let a slow or dead remote machine hold the
+					countdown indefinitely: if it has been joined for more than
+					8 seconds without precaching, drop it from blocking the start */
+					unsigned long join_time = network_game_server_client_machine_join_times[machine->machine_index];
+					if (join_time > 0 && system_milliseconds() - join_time > 8000)
+					{
+						network_event("machine %ld precache timed out (>8s), proceeding without it", (long)i);
+						SET_FLAG(server->client_machines[i].flags, _network_client_machine_precached_bit, TRUE);
+					}
+					else
+					{
+						all_machines_have_precached = FALSE;
+						break;
+					}
+				}
 			}
 		}
 	}
