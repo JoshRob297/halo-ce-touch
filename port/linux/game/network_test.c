@@ -62,7 +62,11 @@ Called from the main loop every frame (main.c).
 const char *config_string(char const *name);
 double config_real(char const *name);
 long config_integer(char const *name);
+int config_boolean(char const *name);
 void platform_log(char const *format, ...);
+/* port/linux/src/p2p.c: whether this machine hosts, and lists */
+void p2p_set_hosting_allowed(int allowed);
+void p2p_set_hosting_public(int public);
 /* damage.c's */
 void damage_kill_object_for_player(long object_index, long player_index);
 /* network_distributed.c's */
@@ -83,6 +87,10 @@ static struct
 {
 	boolean checked;
 	short mode;
+	/* the maps to rotate, ";" between them, each "map[:variant,variant...]"
+	(debug.network_test's value past "host:"), and which one is current */
+	char spec[2048];
+	short spec_index;
 	char map_name[64];
 	char variant_name[64];
 	/* ... the variant of this game, of variant_name's list; and the seconds
@@ -106,6 +114,10 @@ static struct
 	real pickup_time;
 	char pickup_weapon[64];
 	long score_to_win;
+	/* the minutes a game is given, 0 to keep the variant's own limit
+	(a built-in variant's time limit is 0, so a game with no score it
+	reaches never ends and the host never moves on) */
+	long time_limit;
 	long logged_time;
 } network_test;
 
@@ -134,6 +146,69 @@ static boolean network_test_variant(
 	return TRUE;
 }
 
+/* the index'th map of the list, NULL past its end */
+static char const *network_test_spec_entry(
+	short index)
+{
+	char const *entry = network_test.spec;
+
+	for (; index > 0 && entry; index--)
+	{
+		entry = strchr(entry, ';');
+		if (entry)
+			entry++;
+	}
+	return (entry && *entry) ? entry : NULL;
+}
+
+/* sets map_name and variant_name to the map spec_index names */
+static void network_test_select_map(
+	void)
+{
+	char const *entry = network_test_spec_entry(network_test.spec_index);
+	char const *colon;
+	size_t length;
+
+	if (!entry)
+		return;
+	length = strcspn(entry, ":;");
+	snprintf(network_test.map_name, sizeof(network_test.map_name), "%.*s", (int)length, entry);
+	snprintf(network_test.variant_name, sizeof(network_test.variant_name), "slayer");
+	colon = entry + length;
+	if (*colon == ':')
+	{
+		length = strcspn(colon + 1, ";");
+		if (length > 0)
+			snprintf(network_test.variant_name, sizeof(network_test.variant_name), "%.*s",
+				(int)length, colon + 1);
+	}
+}
+
+/* whether a game follows the one running: the list wraps to its first map,
+so a host that names maps keeps rotating for as long as it runs */
+static boolean network_test_has_next_game(
+	void)
+{
+	return network_test.spec[0] != 0;
+}
+
+/* steps to the game after the current one: the next variant of this map,
+else the first variant of the next map (the first again past the last) */
+static void network_test_next_game(
+	void)
+{
+	if (network_test_variant(network_test.variant_index + 1, NULL, 0))
+	{
+		network_test.variant_index++;
+		return;
+	}
+	network_test.variant_index = 0;
+	network_test.spec_index++;
+	if (!network_test_spec_entry(network_test.spec_index))
+		network_test.spec_index = 0;
+	network_test_select_map();
+}
+
 static void network_test_read_settings(
 	void)
 {
@@ -142,17 +217,10 @@ static void network_test_read_settings(
 	network_test.checked = TRUE;
 	if (!strncmp(setting, "host:", 5) && setting[5])
 	{
-		char *colon;
-
 		network_test.mode = _network_test_host;
-		snprintf(network_test.map_name, sizeof(network_test.map_name), "%s", setting + 5);
-		snprintf(network_test.variant_name, sizeof(network_test.variant_name), "slayer");
-		colon = strchr(network_test.map_name, ':');
-		if (colon)
-		{
-			*colon = 0;
-			snprintf(network_test.variant_name, sizeof(network_test.variant_name), "%s", colon + 1);
-		}
+		snprintf(network_test.spec, sizeof(network_test.spec), "%s", setting + 5);
+		network_test.spec_index = 0;
+		network_test_select_map();
 	}
 	else if (!strcmp(setting, "join"))
 	{
@@ -166,6 +234,7 @@ static void network_test_read_settings(
 	snprintf(network_test.pickup_weapon, sizeof(network_test.pickup_weapon), "%s",
 		config_string("debug.network_test_pickup_weapon"));
 	network_test.score_to_win = (long)config_integer("debug.network_test_score");
+	network_test.time_limit = (long)config_integer("debug.network_test_time");
 	if (network_test.mode != _network_test_off)
 		platform_log("network test: %s", setting);
 }
@@ -858,18 +927,25 @@ void network_test_update(
 	}
 
 	/* the next game of the list: once the scores have been shown a while,
-	the host's button (the bots may press it first) */
-	if (network_test.mode == _network_test_host && network_test.started && game_engine_running() &&
-		!main_menu_loaded && !game_engine_can_score())
+	the host's button (the bots may press it first). In a headless dedicated server,
+	the server state moves to postgame even if game_engine is stopped or non-deterministic
+	updates halted */
 	{
-		network_test.game_over = TRUE;
-		if (game_engine_showing_postgame() && global_network_game_server_get())
+		struct network_game_server *server = global_network_game_server_get();
+		boolean is_postgame = server && (network_game_server_get_state(server, NULL) == 2);
+		boolean game_ended = (game_engine_running() && !game_engine_can_score()) || is_postgame;
+
+		if (network_test.mode == _network_test_host && network_test.started && game_ended)
 		{
-			network_test.postgame_seconds += seconds;
-			if (network_test.postgame_seconds >= 3.0f && network_test_variant(network_test.variant_index + 1, NULL, 0))
+			network_test.game_over = TRUE;
+			if (server)
 			{
-				network_test.postgame_seconds = 0.0f;
-				network_game_server_reset_to_pregame(global_network_game_server_get());
+				network_test.postgame_seconds += seconds;
+				if (network_test.postgame_seconds >= 3.0f && network_test_has_next_game())
+				{
+					network_test.postgame_seconds = 0.0f;
+					network_game_server_reset_to_pregame(server);
+				}
 			}
 		}
 	}
@@ -886,28 +962,42 @@ void network_test_update(
 		network_test.team_set = FALSE;
 		network_test.joined_seconds = 0.0f;
 	}
-	/* ... back in the lobby, set up as the first was */
-	if (network_test.mode == _network_test_host && network_test.game_over && main_menu_loaded)
+	/* ... back in the lobby, set up as the first was. In a headless server,
+	the lobby is ready when main_menu is loaded OR when the server has reset to pregame (state 0) */
 	{
-		network_test.game_over = FALSE;
-		network_test.postgame_seconds = 0.0f;
-		if (network_test_variant(network_test.variant_index + 1, NULL, 0))
+		struct network_game_server *server = global_network_game_server_get();
+		boolean in_pregame = server && (network_game_server_get_state(server, NULL) == 0);
+		if (network_test.mode == _network_test_host && network_test.game_over && (main_menu_loaded || in_pregame))
 		{
-			network_test.variant_index++;
-			network_test.started = FALSE;
-			network_test.map_set = FALSE;
-			network_test.setup_seconds = 0.0f;
-			network_test.menu_seconds = 0.0f;
-			/* (as picking the next game's map does: the scores' map choice
-			holds the countdown) */
-			if (global_network_game_server_get())
-				network_game_server_pause_countdown(global_network_game_server_get(), FALSE);
-			platform_log("network test: the next game");
+			network_test.game_over = FALSE;
+			network_test.postgame_seconds = 0.0f;
+			if (network_test_has_next_game())
+			{
+				network_test_next_game();
+				main_set_multiplayer_map_name(network_test.map_name);
+				network_test.started = FALSE;
+				network_test.map_set = FALSE;
+				network_test.setup_seconds = 0.0f;
+				network_test.menu_seconds = 0.0f;
+				/* (as picking the next game's map does: the scores' map choice
+				holds the countdown) */
+				if (global_network_game_server_get())
+					network_game_server_pause_countdown(global_network_game_server_get(), FALSE);
+				/* a join that arrived as the last game ended would refuse every
+				later one, the server holding it behind the queued player */
+				network_game_server_port_clear_queued_players(global_network_game_server_get());
+				platform_log("network test: the next game (%s, %s)", network_test.map_name,
+					network_test.variant_name);
+			}
 		}
 	}
 
-	if (!main_menu_loaded)
-		return;
+	{
+		struct network_game_server *server = global_network_game_server_get();
+		boolean in_pregame = server && (network_game_server_get_state(server, NULL) == 0);
+		if (!main_menu_loaded && !(network_test.mode == _network_test_host && in_pregame))
+			return;
+	}
 	network_test.menu_seconds += seconds;
 	/* (the main menu settling first) */
 	if (network_test.menu_seconds < 2.0f)
@@ -921,6 +1011,28 @@ void network_test_update(
 			network_test.set_up = TRUE;
 			main_set_multiplayer_map_name(network_test.map_name);
 			player_ui_fast_setup_network_server();
+			/* port: a host the list is given is an Internet host, as the menus'
+			multiplayer_host makes one (menu_functions.c): it lists itself in
+			everyone's server browser under network.server_name, which no menu
+			sets for it, and its games carry it (network_server_manager.c) */
+			{
+				char const *server_name = config_string("network.server_name");
+				int online = config_boolean("network.online");
+
+				if (server_name && server_name[0])
+				{
+					wchar_t wide[NETWORK_GAME_SERVER_NAME_TEXT_SIZE];
+					int index;
+
+					for (index = 0; index < NETWORK_GAME_SERVER_NAME_TEXT_SIZE - 1 && server_name[index]; index++)
+						wide[index] = (wchar_t)(unsigned char)server_name[index];
+					wide[index] = 0;
+					/* (0: the most players the build holds, as the menus leave it) */
+					network_game_server_port_set_settings(wide, 0);
+				}
+				p2p_set_hosting_allowed(online);
+				p2p_set_hosting_public(online && config_boolean("network.host_public"));
+			}
 			platform_log("network test: hosting %s", network_test.map_name);
 		}
 		else if (!network_test.started)
@@ -936,18 +1048,64 @@ void network_test_update(
 
 				snprintf(path, sizeof(path), "levels\\test\\%s\\%s", network_test.map_name, network_test.map_name);
 				network_game_server_change_map_name(global_network_game_server_get(), path);
+				/* port: a host that names maps plays on its own too, so a server
+				the list is given starts the game it advertises with nobody on it
+				(the countdown needs the players a game asks for, and the Xbox
+				game's own is two) */
+				network_game_server_port_set_minimum_players(global_network_game_server_get(), 1);
+				/* port: and one machine: the host's own (it plays on its own, so
+				the list moves on with nobody on the server) */
+				network_game_server_port_set_minimum_machines(global_network_game_server_get(), 1);
 				/* the variant, as picking the game settings does */
 				{
 					char variant_name[64];
 
 					network_test_variant(network_test.variant_index, variant_name, sizeof(variant_name));
 					variant = *game_engine_get_variant_by_name(&variant, variant_name);
-					platform_log("network test: game %d, %s", network_test.variant_index + 1, variant_name);
+					/* port: a variant with teams asks for a player on each one
+					(server_needs_more_teams), which a host nobody is on cannot give:
+					its countdown would be held for ever and the list would stand still.
+					The map's first variant without teams plays instead (the list's own
+					pick comes back with players) */
+					if (variant.universal_variant.teams &&
+						network_game_server_port_player_count(global_network_game_server_get()) < 2)
+					{
+						long index;
+						char candidate[64];
+
+						for (index = 0; network_test_variant(index, candidate, sizeof(candidate)); index++)
+						{
+							struct game_variant other =
+								*game_engine_get_variant_by_name(&variant, candidate);
+
+							if (!other.universal_variant.teams)
+							{
+								variant = other;
+								snprintf(variant_name, sizeof(variant_name), "%s", candidate);
+								break;
+							}
+						}
+					}
+					platform_log("network test: game %d, %s on %s", network_test.variant_index + 1,
+						variant_name, network_test.map_name);
 				}
 				/* debug.network_test_score: a short game, to test the next */
 				if (network_test.score_to_win > 0)
 					variant.universal_variant.score_to_win = network_test.score_to_win;
 				player_ui_set_game_variant(&variant);
+				/* debug.network_test_time: the gametype's options carry the time
+				limit and a built-in variant's own is none (0), so a game whose
+				score nobody reaches never ends and the list stands still. The
+				call above reset the options to the variant's, so they are given
+				here, before the server reads them for its clients. */
+				{
+					struct game_variant_options options;
+
+					game_variant_options_default(&variant, &options);
+					if (network_test.time_limit > 0)
+						options.time_limit = (short)network_test.time_limit;
+					player_ui_set_game_variant_options(&options);
+				}
 				network_game_server_change_game_variant(global_network_game_server_get(), &variant);
 				network_test.map_set = TRUE;
 			}
