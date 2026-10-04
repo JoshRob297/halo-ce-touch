@@ -927,18 +927,25 @@ void network_test_update(
 	}
 
 	/* the next game of the list: once the scores have been shown a while,
-	the host's button (the bots may press it first) */
-	if (network_test.mode == _network_test_host && network_test.started && game_engine_running() &&
-		!main_menu_loaded && !game_engine_can_score())
+	the host's button (the bots may press it first). In a headless dedicated server,
+	the server state moves to postgame even if game_engine is stopped or non-deterministic
+	updates halted */
 	{
-		network_test.game_over = TRUE;
-		if (game_engine_showing_postgame() && global_network_game_server_get())
+		struct network_game_server *server = global_network_game_server_get();
+		boolean is_postgame = server && (network_game_server_get_state(server, NULL) == 2);
+		boolean game_ended = (game_engine_running() && !game_engine_can_score()) || is_postgame;
+
+		if (network_test.mode == _network_test_host && network_test.started && game_ended)
 		{
-			network_test.postgame_seconds += seconds;
-			if (network_test.postgame_seconds >= 3.0f && network_test_has_next_game())
+			network_test.game_over = TRUE;
+			if (server)
 			{
-				network_test.postgame_seconds = 0.0f;
-				network_game_server_reset_to_pregame(global_network_game_server_get());
+				network_test.postgame_seconds += seconds;
+				if (network_test.postgame_seconds >= 3.0f && network_test_has_next_game())
+				{
+					network_test.postgame_seconds = 0.0f;
+					network_game_server_reset_to_pregame(server);
+				}
 			}
 		}
 	}
@@ -955,33 +962,42 @@ void network_test_update(
 		network_test.team_set = FALSE;
 		network_test.joined_seconds = 0.0f;
 	}
-	/* ... back in the lobby, set up as the first was */
-	if (network_test.mode == _network_test_host && network_test.game_over && main_menu_loaded)
+	/* ... back in the lobby, set up as the first was. In a headless server,
+	the lobby is ready when main_menu is loaded OR when the server has reset to pregame (state 0) */
 	{
-		network_test.game_over = FALSE;
-		network_test.postgame_seconds = 0.0f;
-		if (network_test_has_next_game())
+		struct network_game_server *server = global_network_game_server_get();
+		boolean in_pregame = server && (network_game_server_get_state(server, NULL) == 0);
+		if (network_test.mode == _network_test_host && network_test.game_over && (main_menu_loaded || in_pregame))
 		{
-			network_test_next_game();
-			main_set_multiplayer_map_name(network_test.map_name);
-			network_test.started = FALSE;
-			network_test.map_set = FALSE;
-			network_test.setup_seconds = 0.0f;
-			network_test.menu_seconds = 0.0f;
-			/* (as picking the next game's map does: the scores' map choice
-			holds the countdown) */
-			if (global_network_game_server_get())
-				network_game_server_pause_countdown(global_network_game_server_get(), FALSE);
-			/* a join that arrived as the last game ended would refuse every
-			later one, the server holding it behind the queued player */
-			network_game_server_port_clear_queued_players(global_network_game_server_get());
-			platform_log("network test: the next game (%s, %s)", network_test.map_name,
-				network_test.variant_name);
+			network_test.game_over = FALSE;
+			network_test.postgame_seconds = 0.0f;
+			if (network_test_has_next_game())
+			{
+				network_test_next_game();
+				main_set_multiplayer_map_name(network_test.map_name);
+				network_test.started = FALSE;
+				network_test.map_set = FALSE;
+				network_test.setup_seconds = 0.0f;
+				network_test.menu_seconds = 0.0f;
+				/* (as picking the next game's map does: the scores' map choice
+				holds the countdown) */
+				if (global_network_game_server_get())
+					network_game_server_pause_countdown(global_network_game_server_get(), FALSE);
+				/* a join that arrived as the last game ended would refuse every
+				later one, the server holding it behind the queued player */
+				network_game_server_port_clear_queued_players(global_network_game_server_get());
+				platform_log("network test: the next game (%s, %s)", network_test.map_name,
+					network_test.variant_name);
+			}
 		}
 	}
 
-	if (!main_menu_loaded)
-		return;
+	{
+		struct network_game_server *server = global_network_game_server_get();
+		boolean in_pregame = server && (network_game_server_get_state(server, NULL) == 0);
+		if (!main_menu_loaded && !(network_test.mode == _network_test_host && in_pregame))
+			return;
+	}
 	network_test.menu_seconds += seconds;
 	/* (the main menu settling first) */
 	if (network_test.menu_seconds < 2.0f)
