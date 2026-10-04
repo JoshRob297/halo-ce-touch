@@ -49,6 +49,10 @@ given a map list asks for one, so it starts with nobody on it */
 void network_game_server_port_set_minimum_players(
 	struct network_game_server *server,
 	long minimum_players);
+/* port: drop the joins a finished game left waiting, so the next one
+starts with none (network_test.c's host) */
+void network_game_server_port_clear_queued_players(
+	struct network_game_server *server);
 void network_game_generate_join_game_token(
 	byte *join_token);
 void network_game_server_kick_machine(
