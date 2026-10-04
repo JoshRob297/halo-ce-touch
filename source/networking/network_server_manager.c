@@ -2910,12 +2910,43 @@ boolean server_has_a_player_on_each_machine(
 	return TRUE;
 }
 
+/* port: whether this machine's own player is in the game (the host's own
+machine: the one a host the map list is given joins as, network_test.c) */
+static boolean network_game_server_local_machine_has_players(
+	struct network_game_server *server)
+{
+	long client_machine_index;
+
+	for (client_machine_index = 0;
+		client_machine_index < MAXIMUM_NETWORK_MACHINE_COUNT;
+		client_machine_index++)
+	{
+		struct network_game_server_client_machine *client_machine =
+			&server->client_machines[client_machine_index];
+
+		if (network_game_server_client_machine_is_local(server, client_machine) &&
+			network_game_server_machine_has_players(server, client_machine->machine_index))
+		{
+			return TRUE;
+		}
+	}
+
+	return FALSE;
+}
+
 boolean server_has_enough_machines(
 	struct network_game_server *server)
 {
 	boolean has_enough_machines;
+	/* port: a host playing on its own (the player of its own machine in the
+	game, and no others) is a game of one machine: its map list's game starts
+	and the list moves on with nobody on the server, as a splitscreen game's
+	does. Without it, a host the map list is given holds its lobby for ever
+	once the last player leaves, and never rotates again (the machines
+	condition of server_ok_to_countdown) */
 	long minimum_machine_count =
-		network_game_is_splitscreen_local() ? 1 : 2;
+		(network_game_is_splitscreen_local() ||
+			network_game_server_local_machine_has_players(server)) ? 1 : 2;
 	long machine_count = 0;
 	long client_machine_index;
 
