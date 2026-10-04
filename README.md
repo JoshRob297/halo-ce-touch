@@ -39,6 +39,7 @@ server builds from this same tree.
 - **Netcode v11 Compatibility**: Fully compatible with the latest desktop/native netcode v11 multiplayer protocol and up to 128 players.
 - **Dedicated Server Map Rotation & Automated Start**: Server harness (`debug.network_test`) updated to support sequential map list rotation separated by `;` and automated countdown (`minimum_players = 1`), allowing dedicated servers to keep continuous map rotations.
 - **Desktop Target Preservation**: Maintained Linux and Windows toolchains and build targets alongside Android, preventing codebase divergence.
+- **Public Server Browser Listing**: A host the list is given (`debug.network_test`) is an Internet host as the menus make one, so it lists itself in everyone's server browser: `network.server_name` names the listing (15 characters, the game's own field) and `network.host_public` decides whether it is listed at all. Before, only a game started from Create Game > Internet was visible, and a headless host carried no name.
 
 ### Bug Fixes & Code Corrections
 - **Pointer Aim Initialization Fix**: Corrected an uninitialized variable memory bug in `halo_linux_mouse_look` (`port/linux/src/xinput_sdl.c`) where the touch accumulation logic previously corrupted uninitialized desktop look registers under non-Android builds.
