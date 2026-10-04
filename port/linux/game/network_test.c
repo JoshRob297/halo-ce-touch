@@ -62,7 +62,11 @@ Called from the main loop every frame (main.c).
 const char *config_string(char const *name);
 double config_real(char const *name);
 long config_integer(char const *name);
+int config_boolean(char const *name);
 void platform_log(char const *format, ...);
+/* port/linux/src/p2p.c: whether this machine hosts, and lists */
+void p2p_set_hosting_allowed(int allowed);
+void p2p_set_hosting_public(int public);
 /* damage.c's */
 void damage_kill_object_for_player(long object_index, long player_index);
 /* network_distributed.c's */
@@ -991,6 +995,28 @@ void network_test_update(
 			network_test.set_up = TRUE;
 			main_set_multiplayer_map_name(network_test.map_name);
 			player_ui_fast_setup_network_server();
+			/* port: a host the list is given is an Internet host, as the menus'
+			multiplayer_host makes one (menu_functions.c): it lists itself in
+			everyone's server browser under network.server_name, which no menu
+			sets for it, and its games carry it (network_server_manager.c) */
+			{
+				char const *server_name = config_string("network.server_name");
+				int online = config_boolean("network.online");
+
+				if (server_name && server_name[0])
+				{
+					wchar_t wide[NETWORK_GAME_SERVER_NAME_TEXT_SIZE];
+					int index;
+
+					for (index = 0; index < NETWORK_GAME_SERVER_NAME_TEXT_SIZE - 1 && server_name[index]; index++)
+						wide[index] = (wchar_t)(unsigned char)server_name[index];
+					wide[index] = 0;
+					/* (0: the most players the build holds, as the menus leave it) */
+					network_game_server_port_set_settings(wide, 0);
+				}
+				p2p_set_hosting_allowed(online);
+				p2p_set_hosting_public(online && config_boolean("network.host_public"));
+			}
 			platform_log("network test: hosting %s", network_test.map_name);
 		}
 		else if (!network_test.started)
