@@ -942,7 +942,10 @@ void network_test_update(
 		boolean is_postgame = server && (network_game_server_get_state(server, NULL) == 2);
 		boolean game_ended = (game_engine_running() && !game_engine_can_score()) || is_postgame;
 
-		if (network_test.mode == _network_test_host && network_test.started && game_ended)
+		/* port: a server left in postgame with no game running (its last
+		rotation did not start) must come back to the lobby too, or the list
+		never moves on: the countdown only runs in pregame */
+		if (network_test.mode == _network_test_host && (network_test.started || is_postgame) && game_ended)
 		{
 			network_test.game_over = TRUE;
 			if (server)
@@ -1158,6 +1161,17 @@ void network_test_update(
 				}
 			}
 
+			/* port: why a game the host asked for is not starting (every five
+			seconds: a host nobody watches leaves no trace of it) */
+			{
+				static real last_state_log;
+
+				if (network_test.setup_seconds - last_state_log >= 5.0f)
+				{
+					last_state_log = network_test.setup_seconds;
+					network_game_server_port_log_state(global_network_game_server_get());
+				}
+			}
 			if (!network_test.player_added && network_test.setup_seconds >= 2.0f && global_network_game_client_get())
 				network_test.player_added = network_game_client_add_player(global_network_game_client_get(), 0);
 			if (network_test.setup_seconds >= network_test.start_delay)

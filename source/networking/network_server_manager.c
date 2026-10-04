@@ -3893,6 +3893,28 @@ void network_game_server_port_set_settings(
 Xbox game's own is two (network_game_server_setup_game_from_playlist),
 which a dedicated host never reaches with only its own player: it sits
 in the lobby and the map list it was given never moves on. */
+/* port: the state a host nobody watches cannot see: why a game it asked
+for did not start (network_test.c calls it every few seconds) */
+void network_game_server_port_log_state(
+	struct network_game_server *server)
+{
+	if (!server)
+		return;
+
+	network_event(
+		"server: state %d (pregame 0, ingame 1, postgame 2), countdown %s%s, %ld ms left; machines %d, a player on each %d, teams %d, players %ld of %ld, all pre-cached %d",
+		server->state,
+		server->countdown_state.active ? "active" : "inactive",
+		server->countdown_state.paused ? " (paused)" : "",
+		countdown_timer_get_time_remaining(&server->countdown_state.timer),
+		server_has_enough_machines(server),
+		server_has_a_player_on_each_machine(server),
+		!server_needs_more_teams(server),
+		(long)server->game.player_count,
+		(long)server->game.minimum_players,
+		network_game_server_have_all_machines_have_precached(server));
+}
+
 long network_game_server_port_player_count(
 	struct network_game_server *server)
 {

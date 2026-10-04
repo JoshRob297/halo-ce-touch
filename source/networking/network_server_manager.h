@@ -60,6 +60,10 @@ void network_game_server_port_clear_queued_players(
 one on each: server_needs_more_teams) */
 long network_game_server_port_player_count(
 	struct network_game_server *server);
+/* port: why a game a host asks for is not starting: the server's state,
+its countdown and the conditions it waits for (network_test.c) */
+void network_game_server_port_log_state(
+	struct network_game_server *server);
 void network_game_generate_join_game_token(
 	byte *join_token);
 void network_game_server_kick_machine(
