@@ -3895,6 +3895,18 @@ which a dedicated host never reaches with only its own player: it sits
 in the lobby and the map list it was given never moves on. */
 /* port: the state a host nobody watches cannot see: why a game it asked
 for did not start (network_test.c calls it every few seconds) */
+/* port: directly start the game from the server side, ensuring a headless
+dedicated host always progresses through its rotation automatically */
+boolean network_game_server_port_force_start(
+	struct network_game_server *server)
+{
+	if (!server || server->state != _network_game_server_state_pregame)
+		return FALSE;
+
+	network_event("network_game_server_port_force_start: forcing game start");
+	return network_game_server_start_network_game(server);
+}
+
 void network_game_server_port_log_state(
 	struct network_game_server *server)
 {

@@ -1179,12 +1179,20 @@ void network_test_update(
 			if (network_test.setup_seconds >= network_test.start_delay)
 			{
 				static real last_start_request;
-				network_test.started = TRUE;
-				if (network_test.setup_seconds - last_start_request >= 3.0f)
+
+				/* port: keep setup_seconds advancing and re-request start every
+				2 seconds until the engine actually transitions to running */
+				if (network_test.setup_seconds - last_start_request >= 2.0f)
 				{
 					last_start_request = network_test.setup_seconds;
+					platform_log("network test: starting the game (forcing server start)");
 					network_game_client_request_immediate_start();
-					platform_log("network test: starting the game (request sent)");
+					network_game_server_port_force_start(global_network_game_server_get());
+				}
+				if (game_engine_running())
+				{
+					network_test.started = TRUE;
+					platform_log("network test: game is now running");
 				}
 			}
 		}

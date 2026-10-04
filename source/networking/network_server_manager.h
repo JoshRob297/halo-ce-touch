@@ -64,6 +64,10 @@ long network_game_server_port_player_count(
 its countdown and the conditions it waits for (network_test.c) */
 void network_game_server_port_log_state(
 	struct network_game_server *server);
+/* port: directly force the server to start loading the network game,
+bypassing client countdown packets that can be dropped or delayed */
+boolean network_game_server_port_force_start(
+	struct network_game_server *server);
 void network_game_generate_join_game_token(
 	byte *join_token);
 void network_game_server_kick_machine(
