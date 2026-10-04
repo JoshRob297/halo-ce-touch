@@ -154,10 +154,8 @@ static const struct config_setting config_settings[] =
 		"and a menus folder here for your own), \"xbox\" for the Xbox's." },
 	{ "display.player_names", _config_string, "\"all\"", "HALO_PLAYER_NAMES", _environment_value, _platform_all,
 		"In multiplayer, whose names are drawn above their heads: \"all\",\n"
-		"\"allies\", \"enemies\" or \"none\". An enemy's shows only within the\n"
-		"motion sensor's reach, in sight and not camouflaged; none show if the\n"
-		"gametype's motion tracker shows no players, only allies' if it shows\n"
-		"only friends." },
+		"\"allies\", \"enemies\" or \"none\". An enemy's shows only while in sight\n"
+		"and not camouflaged." },
 	{ "display.player_name_scale", _config_real, "1.0", "HALO_PLAYER_NAME_SCALE", _environment_value, _platform_all,
 		"How large the players' names are drawn: 1.0 three quarters of the size of\n"
 		"the HUD's text, 0.25 to 4." },
@@ -477,6 +475,11 @@ static const struct config_setting config_settings[] =
 		"invite find each other (its messages are encrypted), beside this file\n"
 		"unless a full path: one host:port on each line, up to 4. Updates\n"
 		"replace brokers.txt: keep a list of your own under another name." },
+	{ "network.server_name", _config_string, "\"\"", "HALO_NET_SERVER_NAME", _environment_value, _platform_all,
+		"The name a dedicated host's listing shows in everyone's server\n"
+		"browser (debug.network_test's host; a game the menus make takes\n"
+		"Server Setup's own). Empty leaves the game's own, which here is\n"
+		"none." },
 	{ "network.stun_servers", _config_string, "\"stun.l.google.com:19302,stun.cloudflare.com:3478\"",
 		"HALO_NET_STUN", _environment_value, _platform_all,
 		"Public STUN servers that tell this machine its internet address;\n"
@@ -508,7 +511,9 @@ static const struct config_setting config_settings[] =
 
 	{ "debug.network_test", _config_string, "\"\"", "HALO_NETWORK_TEST", _environment_value, _platform_all,
 		"Automated system link sessions for testing (port/linux/game/network_test.c):\n"
-		"\"host:<map>\" hosts a game on that map, \"join\" joins the first game found,\n"
+		"\"host:<map>[:<variant>,<variant>...]\" hosts a game on that map with those\n"
+		"variants in turn, and \";\" between such entries rotates through the maps\n"
+		"(the first again past the last); \"join\" joins the first game found;\n"
 		"\"browse\" the one with the most players the server browser lists (not\n"
 		"co-op, if it can); empty for none." },
 	{ "debug.network_test_start", _config_real, "15.0", "HALO_NETWORK_TEST_START", _environment_value, _platform_all,
@@ -518,6 +523,11 @@ static const struct config_setting config_settings[] =
 	{ "debug.network_test_score", _config_integer, "0", "HALO_NETWORK_TEST_SCORE", _environment_value, _platform_all,
 		"The score an automated test host's game type plays to (a short game, to\n"
 		"test the next); 0 the game type's own." },
+	{ "debug.network_test_time", _config_integer, "0", "HALO_NETWORK_TEST_TIME", _environment_value, _platform_all,
+		"The minutes an automated test host gives a game, over the game type's own\n"
+		"limit (a built-in variant's is none, so its game ends only by the score it\n"
+		"plays to and a host that rotates maps would never move on); 0 the game\n"
+		"type's own." },
 	{ "debug.network_test_shoot", _config_real, "0.0", "HALO_NETWORK_TEST_SHOOT", _environment_value, _platform_all,
 		"Every this many seconds each automated test player hits the next with\n"
 		"their weapon, within its reach (the host brings far players near the\n"
