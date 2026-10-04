@@ -3893,6 +3893,12 @@ void network_game_server_port_set_settings(
 Xbox game's own is two (network_game_server_setup_game_from_playlist),
 which a dedicated host never reaches with only its own player: it sits
 in the lobby and the map list it was given never moves on. */
+long network_game_server_port_player_count(
+	struct network_game_server *server)
+{
+	return server ? server->game.player_count : 0;
+}
+
 void network_game_server_port_set_minimum_players(
 	struct network_game_server *server,
 	long minimum_players)

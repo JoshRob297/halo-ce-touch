@@ -53,6 +53,10 @@ void network_game_server_port_set_minimum_players(
 starts with none (network_test.c's host) */
 void network_game_server_port_clear_queued_players(
 	struct network_game_server *server);
+/* port: the players a host's game holds (a variant with teams asks for
+one on each: server_needs_more_teams) */
+long network_game_server_port_player_count(
+	struct network_game_server *server);
 void network_game_generate_join_game_token(
 	byte *join_token);
 void network_game_server_kick_machine(

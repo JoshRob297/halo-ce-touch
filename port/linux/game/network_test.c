@@ -1043,6 +1043,30 @@ void network_test_update(
 
 					network_test_variant(network_test.variant_index, variant_name, sizeof(variant_name));
 					variant = *game_engine_get_variant_by_name(&variant, variant_name);
+					/* port: a variant with teams asks for a player on each one
+					(server_needs_more_teams), which a host nobody is on cannot give:
+					its countdown would be held for ever and the list would stand still.
+					The map's first variant without teams plays instead (the list's own
+					pick comes back with players) */
+					if (variant.universal_variant.teams &&
+						network_game_server_port_player_count(global_network_game_server_get()) < 2)
+					{
+						long index;
+						char candidate[64];
+
+						for (index = 0; network_test_variant(index, candidate, sizeof(candidate)); index++)
+						{
+							struct game_variant other =
+								*game_engine_get_variant_by_name(&variant, candidate);
+
+							if (!other.universal_variant.teams)
+							{
+								variant = other;
+								snprintf(variant_name, sizeof(variant_name), "%s", candidate);
+								break;
+							}
+						}
+					}
 					platform_log("network test: game %d, %s on %s", network_test.variant_index + 1,
 						variant_name, network_test.map_name);
 				}
