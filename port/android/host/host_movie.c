@@ -55,11 +55,11 @@ static struct
 	const char *chosen;
 } movies[_movie_count] = {
 	{ "",         "",                "",              0,   0,   0,    0, 0, 0,  0, 0, NULL },
-	{ "intro",    "intro_es.mp4",    "intro.mp4",     640, 480, 481,  0, 0, 0,  0, 0, NULL },
-	{ "credits",  "credits_es.mp4",  "credits.mp4",   640, 480, 5214, 0, 0, 0,  0, 0, NULL },
-	{ "attract1", "attract1_es.mp4", "attract1.mp4",  640, 480, 4538, 0, 0, 0,  0, 0, NULL },
-	{ "attract2", "attract2_es.mp4", "attract2.mp4",  640, 480, 3982, 0, 0, 0,  0, 0, NULL },
-	{ "attract3", "attract3_es.mp4", "attract3.mp4",  640, 480, 2042, 0, 0, 0,  0, 0, NULL },
+	{ "intro",    "intro_es.bik",    "intro.bik",     640, 480, 481,  0, 0, 0,  0, 0, NULL },
+	{ "credits",  "credits_es.bik",  "credits.bik",   640, 480, 5214, 0, 0, 0,  0, 0, NULL },
+	{ "attract1", "attract1_es.bik", "attract1.bik",  640, 480, 4538, 0, 0, 0,  0, 0, NULL },
+	{ "attract2", "attract2_es.bik", "attract2.bik",  640, 480, 3982, 0, 0, 0,  0, 0, NULL },
+	{ "attract3", "attract3_es.bik", "attract3.bik",  640, 480, 2042, 0, 0, 0,  0, 0, NULL },
 };
 
 /* the transcoded files the APK shipped, as MoviePlayer.java lists them at

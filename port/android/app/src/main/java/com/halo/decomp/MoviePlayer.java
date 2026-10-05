@@ -1,8 +1,6 @@
 package com.halo.decomp;
 
 import android.content.Context;
-import android.content.res.AssetFileDescriptor;
-import android.media.MediaPlayer;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.SurfaceHolder;
@@ -10,18 +8,24 @@ import android.view.SurfaceView;
 import android.view.View;
 import android.view.ViewGroup;
 
-import java.io.IOException;
+import java.io.File;
 
 /**
- * The movies the game asks for. The port has no Bink decoder
- * (port/linux/src/bink_null.c hands them to this side), so the device's own
- * player plays the port's transcoded file over the game's surface, and the
- * native side (port/android/host/host_movie.c) is told which frame it is on:
- * the game's playback loop ends the movie when it reaches the last one, and
- * stops it when a button skips it (the game closes the movie, the poll below
- * finds nothing asked for and the player is stopped).
+ * The movies the game asks for.
+ *
+ * The port has no Bink decoder (the RAD SDK is proprietary) and Android's own
+ * player cannot read a .bik, so the open-source decoder in libbinkplayer.so
+ * (FFmpeg's Bink demuxer and decoders) plays the movie the disc carries,
+ * drawn straight to the SurfaceView over the game. The files come from the
+ * disc the player extracted (its bink folder), so nothing of the game is
+ * packaged with the app.
+ *
+ * The native side (port/android/host/host_movie.c) is told which movie the
+ * game asked for and how far the player is: the engine's own playback loop
+ * (bink_playback.c) ends the movie when it reaches its last frame, and stops
+ * it when a button skips it.
  */
-final class MoviePlayer implements SurfaceHolder.Callback, MediaPlayer.OnCompletionListener, Runnable {
+final class MoviePlayer implements SurfaceHolder.Callback, Runnable {
     private static native int nativePoll();
     private static native void nativeReady(boolean ready);
     private static native void nativeStarted(int movie);
@@ -30,14 +34,14 @@ final class MoviePlayer implements SurfaceHolder.Callback, MediaPlayer.OnComplet
     /* the asset the movie the guest asked for plays (the language the engine
        chose: host_movie.c resolves it) */
     private static native String nativeAssetName(int movie);
-    /* one of the files the APK shipped: the languages the port can play */
+    /* one of the files the disc the player extracted carries */
     private static native void nativeRegisterAsset(String name);
 
     private final Context context;
     private final SurfaceView view;
     private final View overlay;
     private final Handler handler = new Handler(Looper.getMainLooper());
-    private MediaPlayer player;
+    private BinkPlayer player;
     private int movie;
     private boolean surfaceReady;
     private boolean starting;
@@ -56,15 +60,19 @@ final class MoviePlayer implements SurfaceHolder.Callback, MediaPlayer.OnComplet
         handler.postDelayed(this, 100);
     }
 
-    /* the movies the APK shipped: what the native side may offer (a language
+    /* where the disc's movies were extracted (bink/*.bik) */
+    private File binkDirectory() {
+        File root = context.getExternalFilesDir(null);
+        return root != null ? new File(root, "bink") : null;
+    }
+
+    /* the movies the disc carries: what the native side may offer (a language
        with no file falls back to the one that is here) */
     private void registerAssets() {
-        try {
-            String[] files = context.getAssets().list("cinematics");
-            if (files != null) {
-                for (String name : files) nativeRegisterAsset(name);
-            }
-        } catch (IOException ignored) {
+        File directory = binkDirectory();
+        String[] files = directory != null ? directory.list() : null;
+        if (files != null) {
+            for (String name : files) nativeRegisterAsset(name);
         }
     }
 
@@ -83,13 +91,7 @@ final class MoviePlayer implements SurfaceHolder.Callback, MediaPlayer.OnComplet
     public void surfaceDestroyed(SurfaceHolder holder) {
         surfaceReady = false;
         nativeReady(false);
-    }
-
-    @Override
-    public void onCompletion(MediaPlayer finished) {
-        int done = movie;
         stopMovie();
-        if (done != 0) nativeFinished(done);
     }
 
     /** what the game asks for, and how far the player is, every 100 ms */
@@ -105,9 +107,11 @@ final class MoviePlayer implements SurfaceHolder.Callback, MediaPlayer.OnComplet
         }
 
         if (player != null) {
-            try {
-                nativeProgress(movie, player.getCurrentPosition(), player.getDuration());
-            } catch (IllegalStateException ignored) {
+            nativeProgress(movie, player.positionMs(), player.durationMs());
+            if (player.finished()) {
+                int done = movie;
+                stopMovie();
+                nativeFinished(done);
             }
         }
 
@@ -118,42 +122,30 @@ final class MoviePlayer implements SurfaceHolder.Callback, MediaPlayer.OnComplet
         if (wanted <= 0 || !surfaceReady) return;
 
         String asset = nativeAssetName(wanted);
-        if (asset == null || asset.isEmpty()) return;
+        File directory = binkDirectory();
+        if (asset == null || asset.isEmpty() || directory == null) return;
 
-        AssetFileDescriptor file = null;
+        File file = new File(directory, asset);
+        if (!file.isFile()) return;
+
         starting = true;
         try {
-            file = context.getAssets().openFd("cinematics/" + asset);
-            MediaPlayer started = new MediaPlayer();
-            started.setDataSource(file.getFileDescriptor(), file.getStartOffset(), file.getLength());
-            started.setSurface(view.getHolder().getSurface());
-            started.setOnCompletionListener(this);
-            started.prepare();
+            BinkPlayer started = new BinkPlayer(file.getAbsolutePath(), view.getHolder().getSurface());
             started.start();
             player = started;
             movie = wanted;
             view.setVisibility(View.VISIBLE);
             if (overlay != null) overlay.setVisibility(View.INVISIBLE);
             nativeStarted(wanted);
-        } catch (IOException | IllegalArgumentException | IllegalStateException e) {
+        } catch (RuntimeException e) {
             stopMovie();
         } finally {
             starting = false;
-            if (file != null) {
-                try {
-                    file.close();
-                } catch (IOException ignored) {
-                }
-            }
         }
     }
 
     private void stopMovie() {
         if (player != null) {
-            try {
-                player.stop();
-            } catch (IllegalStateException ignored) {
-            }
             player.release();
             player = null;
         }
