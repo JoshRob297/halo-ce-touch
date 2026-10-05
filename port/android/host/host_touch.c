@@ -15,6 +15,8 @@ static int rumble_amplitude;
 static struct timespec rumble_time;
 static int frame_count, frame_fps;
 static struct timespec frame_time;
+static int camera_pending;
+static float field_of_view = 70.0f;
 
 void host_touch_rumble(unsigned int low, unsigned int high)
 {
@@ -65,6 +67,45 @@ JNIEXPORT jint JNICALL Java_com_halo_decomp_TouchControls_nativeFps(JNIEnv *env,
 	fps = frame_fps;
 	pthread_mutex_unlock(&touch_lock);
 	return fps;
+}
+
+JNIEXPORT void JNICALL Java_com_halo_decomp_TouchControls_nativeCameraMode(
+    JNIEnv *env, jclass cls)
+{
+    (void)env; (void)cls;
+    pthread_mutex_lock(&touch_lock);
+    camera_pending = 1;
+    pthread_mutex_unlock(&touch_lock);
+}
+
+/* the guest reads it once a frame (director.c) */
+int host_touch_camera_read(void)
+{
+    int pending;
+    pthread_mutex_lock(&touch_lock);
+    pending = camera_pending; camera_pending = 0;
+    pthread_mutex_unlock(&touch_lock);
+    return pending;
+}
+
+JNIEXPORT void JNICALL Java_com_halo_decomp_TouchControls_nativeFieldOfView(
+    JNIEnv *env, jclass cls, jfloat degrees)
+{
+    (void)env; (void)cls;
+    if (!(degrees >= 55.0f && degrees <= 90.0f)) return;
+    pthread_mutex_lock(&touch_lock);
+    field_of_view = degrees;
+    pthread_mutex_unlock(&touch_lock);
+}
+
+/* the guest scales the unit's own field of view by it (player_control.c) */
+float host_touch_field_of_view(void)
+{
+    float degrees;
+    pthread_mutex_lock(&touch_lock);
+    degrees = field_of_view;
+    pthread_mutex_unlock(&touch_lock);
+    return degrees;
 }
 
 JNIEXPORT void JNICALL Java_com_halo_decomp_TouchControls_nativeLook(

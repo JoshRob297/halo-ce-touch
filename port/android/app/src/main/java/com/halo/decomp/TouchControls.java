@@ -60,7 +60,8 @@ public final class TouchControls extends View implements SensorEventListener {
         new Button("Left", 25, 13, -1),
         new Button("Right", 25, 14, -1),
         new Button("", 64, -1, -1), // movement stick keeps its saved index
-        new Button("Fire", 39, -1, 5)
+        new Button("Fire", 39, -1, 5),
+        new Button("Camera mode", 29, -1, -1)
     };
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final SparseIntArray owners = new SparseIntArray();
@@ -81,6 +82,8 @@ public final class TouchControls extends View implements SensorEventListener {
         .setUsage(AudioAttributes.USAGE_GAME).setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build();
     private static native int nativeRumble();
     private static native int nativeFps();
+    private static native void nativeCameraMode();
+    private static native void nativeFieldOfView(float degrees);
     private final Runnable rumblePoll = new Runnable() {
         public void run() {
             if (!deviceInputActive) return;
@@ -263,6 +266,7 @@ public final class TouchControls extends View implements SensorEventListener {
                 reset(); visible = !visible; performClick();
             } else if (control != Integer.MIN_VALUE) {
                 owners.put(id, control);
+                if (control >= 0 && layout.type(control) == TouchLayout.CAMERA) nativeCameraMode();
                 if (control >= 0 && layout.type(control) == LEFT) moveStick(control, x, y);
                 else buttonTouches.put(id, new float[]{event.getX(index), event.getY(index)});
             } else if (visible && lookPointer < 0) {
@@ -352,10 +356,11 @@ public final class TouchControls extends View implements SensorEventListener {
     private void showOptions() {
         optionsOpen = true; reset();
         AlertDialog dialog = new AlertDialog.Builder(getContext()).setTitle("Options")
-            .setItems(new String[]{"General", "Edit buttons layout", "Look sensitivity", "Cheats"}, (d, which) -> {
+            .setItems(new String[]{"General", "Edit buttons layout", "Look sensitivity", "Field of view", "Cheats"}, (d, which) -> {
                 if (which == 0) post(this::showGeneral);
                 else if (which == 1) { editing = true; visible = true; invalidate(); }
                 else if (which == 2) post(this::showSensitivity);
+                else if (which == 3) post(this::showFieldOfView);
                 else post(this::showCheats);
             }).setNegativeButton("Close", null).create();
         dialog.setOnDismissListener(d -> { optionsOpen = false; reset(); });
@@ -380,7 +385,8 @@ public final class TouchControls extends View implements SensorEventListener {
                 .putFloat("look-sensitivity", imported.sensitivity).putBoolean("swipe-layout", true).commit())
             throw new IllegalArgumentException("Could not save imported layout");
         reset(); layout = imported.layout; sensitivity = imported.sensitivity;
-        visible = true; updateSensors(); cancelRumble(); invalidate();
+        visible = true; nativeFieldOfView(layout.fieldOfView);
+        updateSensors(); cancelRumble(); invalidate();
     }
 
     private String controlName(int type) { return type == LEFT ? "Move stick" : buttons[type].label; }
@@ -388,6 +394,7 @@ public final class TouchControls extends View implements SensorEventListener {
     public void startDeviceInput() {
         if (deviceInputActive) return;
         deviceInputActive = true;
+        nativeFieldOfView(layout.fieldOfView);
         gyroAim.reset(); updateSensors(); post(rumblePoll); post(fpsPoll);
     }
 
@@ -577,6 +584,31 @@ public final class TouchControls extends View implements SensorEventListener {
         });
         panel.addView(value); panel.addView(slider);
         AlertDialog dialog = new AlertDialog.Builder(getContext()).setTitle("Look sensitivity")
+            .setView(panel).setPositiveButton("Done", null).create();
+        dialog.setOnDismissListener(d -> { optionsOpen = false; reset(); }); dialog.show();
+    }
+
+    private void showFieldOfView() {
+        optionsOpen = true; reset();
+        LinearLayout panel = new LinearLayout(getContext()); panel.setOrientation(LinearLayout.VERTICAL);
+        panel.setPadding(32, 16, 32, 16);
+        TextView value = new TextView(getContext());
+        SeekBar slider = new SeekBar(getContext());
+        slider.setMax(Math.round(TouchLayout.MAX_FOV-TouchLayout.MIN_FOV));
+        slider.setProgress(Math.round(layout.fieldOfView-TouchLayout.MIN_FOV));
+        value.setText(String.format(java.util.Locale.US, "Field of view: %.0f degrees", layout.fieldOfView));
+        slider.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            public void onProgressChanged(SeekBar bar, int progress, boolean user) {
+                layout.fieldOfView = TouchLayout.MIN_FOV+progress;
+                value.setText(String.format(java.util.Locale.US, "Field of view: %.0f degrees", layout.fieldOfView));
+                nativeFieldOfView(layout.fieldOfView);
+                saveLayout();
+            }
+            public void onStartTrackingTouch(SeekBar bar) {}
+            public void onStopTrackingTouch(SeekBar bar) {}
+        });
+        panel.addView(value); panel.addView(slider);
+        AlertDialog dialog = new AlertDialog.Builder(getContext()).setTitle("Field of view")
             .setView(panel).setPositiveButton("Done", null).create();
         dialog.setOnDismissListener(d -> { optionsOpen = false; reset(); }); dialog.show();
     }

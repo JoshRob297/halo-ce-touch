@@ -502,16 +502,27 @@ real player_control_get_field_of_view(
 			control->unit_index,
 			unit->unit.current_weapon_index);
 
+		real base_field_of_view = definition->unit.camera_field_of_view;
+#ifdef HALO_ANDROID
+		{
+			extern float host_touch_field_of_view(void);
+			/* the overlay's field of view scales the unit's own, so a
+			   weapon's zoom still narrows it */
+			base_field_of_view = PIN(base_field_of_view * host_touch_field_of_view()/70.0f,
+				DEGREES_TO_RADIANS(1.f), DEGREES_TO_RADIANS(90.f));
+		}
+#endif
+
 		if (weapon_index != NONE)
 		{
 			field_of_view = weapon_get_field_of_view(
 				weapon_index,
-				definition->unit.camera_field_of_view,
+				base_field_of_view,
 				control->zoom_level);
 		}
 		else
 		{
-			field_of_view = definition->unit.camera_field_of_view;
+			field_of_view = base_field_of_view;
 		}
 	}
 	return field_of_view;
