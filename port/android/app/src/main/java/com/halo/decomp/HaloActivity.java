@@ -4,6 +4,7 @@ import android.content.Context;
 import android.net.wifi.WifiManager;
 import android.os.Bundle;
 import android.view.Display;
+import android.view.ViewGroup;
 import android.view.WindowManager;
 
 import org.libsdl.app.SDLActivity;
@@ -15,6 +16,7 @@ import org.libsdl.app.SDLActivity;
 public class HaloActivity extends SDLActivity {
     /** lets system link's broadcasts in over Wi-Fi while the game runs */
     private WifiManager.MulticastLock multicastLock;
+    private MoviePlayer moviePlayer;
 
     @Override
     protected String[] getLibraries() {
@@ -24,6 +26,11 @@ public class HaloActivity extends SDLActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        if (mLayout != null) {
+            /* the disc's movies (bink_null.c): the device's own decoder plays
+               them over the game (MoviePlayer.java) */
+            moviePlayer = new MoviePlayer(this, mLayout, null);
+        }
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         preferHighestRefreshRate();
         acquireMulticastLock();
