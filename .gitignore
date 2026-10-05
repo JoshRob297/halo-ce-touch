@@ -30,3 +30,4 @@ original/
 
 # CI build outputs (tools/ci_build.py)
 dist/
+port/android/app/src/main/assets/cinematics/
