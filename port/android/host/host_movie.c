@@ -20,6 +20,7 @@ The guest calls host_movie_*; the player calls the natives below (every
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <strings.h>
 #include <time.h>
 
 enum
@@ -86,7 +87,7 @@ static int movie_file_available(const char *file)
 
 	for (index = 0; index < movie_asset_count; index++)
 	{
-		if (!strcmp(movie_assets[index].name, file))
+		if (!strcasecmp(movie_assets[index].name, file))
 			return 1;
 	}
 
@@ -142,7 +143,7 @@ static int movie_resolve(const char *name, const char **file)
 		unsigned long match = (unsigned long)strlen(movies[movie].match);
 		const char *suffix;
 
-		if (length < match || strncmp(filename, movies[movie].match, match))
+		if (length < match || strncasecmp(filename, movies[movie].match, match))
 			continue;
 
 		suffix = filename + match;
