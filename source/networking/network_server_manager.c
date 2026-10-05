@@ -2967,12 +2967,43 @@ boolean server_has_a_player_on_each_machine(
 	return TRUE;
 }
 
+/* port: whether this machine's own player is in the game (the host's own
+machine: the one a host the map list is given joins as, network_test.c) */
+static boolean network_game_server_local_machine_has_players(
+	struct network_game_server *server)
+{
+	long client_machine_index;
+
+	for (client_machine_index = 0;
+		client_machine_index < MAXIMUM_NETWORK_MACHINE_COUNT;
+		client_machine_index++)
+	{
+		struct network_game_server_client_machine *client_machine =
+			&server->client_machines[client_machine_index];
+
+		if (network_game_server_client_machine_is_local(server, client_machine) &&
+			network_game_server_machine_has_players(server, client_machine->machine_index))
+		{
+			return TRUE;
+		}
+	}
+
+	return FALSE;
+}
+
 boolean server_has_enough_machines(
 	struct network_game_server *server)
 {
 	boolean has_enough_machines;
+	/* port: a host playing on its own (the player of its own machine in the
+	game, and no others) is a game of one machine: its map list's game starts
+	and the list moves on with nobody on the server, as a splitscreen game's
+	does. Without it, a host the map list is given holds its lobby for ever
+	once the last player leaves, and never rotates again (the machines
+	condition of server_ok_to_countdown) */
 	long minimum_machine_count =
-		network_game_is_splitscreen_local() ? 1 : 2;
+		(network_game_is_splitscreen_local() ||
+			network_game_server_local_machine_has_players(server)) ? 1 : 2;
 	long machine_count = 0;
 	long client_machine_index;
 
@@ -2997,15 +3028,38 @@ boolean server_has_enough_machines(
 boolean server_ok_to_countdown(
 	struct network_game_server *server)
 {
-	if (server_has_enough_machines(server) &&
-		server_has_a_player_on_each_machine(server) &&
-		!server_needs_more_teams(server) &&
-		server->game.player_count >= server->game.minimum_players)
+	boolean enough_machines = server_has_enough_machines(server);
+	boolean a_player_on_each = server_has_a_player_on_each_machine(server);
+	boolean teams_full = !server_needs_more_teams(server);
+	boolean enough_players = server->game.player_count >= server->game.minimum_players;
+	boolean ok = enough_machines && a_player_on_each && teams_full && enough_players;
+
+	/* port: a host nobody watches leaves no trace of why its lobby does not
+	start. The reason, logged as it changes (network_event is the engine's
+	log, the host's debug.txt): one letter per condition that fails */
 	{
-		return TRUE;
+		static int last_reason = -1;
+		int reason = (enough_machines ? 0 : 1) | (a_player_on_each ? 0 : 2) |
+			(teams_full ? 0 : 4) | (enough_players ? 0 : 8);
+
+		if (reason != last_reason)
+		{
+			last_reason = reason;
+			network_event(
+				"lobby countdown %s: machines %s, a player on each machine %s, teams %s, players %ld of %ld, paused %s%s%s%s",
+				ok ? "ready" : "held",
+				enough_machines ? "yes" : "NO",
+				a_player_on_each ? "yes" : "NO",
+				teams_full ? "yes" : "NO",
+				(long)server->game.player_count, (long)server->game.minimum_players,
+				server->countdown_state.paused ? "yes" : "no",
+				reason ? " (failed:" : "",
+				(reason & 1) ? " machines" : "",
+				reason ? ")" : "");
+		}
 	}
 
-	return FALSE;
+	return ok;
 }
 
 void network_game_server_invalidate_network_machine(
@@ -3963,6 +4017,73 @@ void network_game_server_port_set_cooperative_friendly_fire(
 		network_event("network_game_server_port_set_cooperative_friendly_fire() failed to send updated game settings to clients");
 }
 
+/* port: the players a game a host runs asks for (network_test.c). The
+Xbox game's own is two (network_game_server_setup_game_from_playlist),
+which a dedicated host never reaches with only its own player: it sits
+in the lobby and the map list it was given never moves on. */
+/* port: the state a host nobody watches cannot see: why a game it asked
+for did not start (network_test.c calls it every few seconds) */
+/* port: directly start the game from the server side, ensuring a headless
+dedicated host always progresses through its rotation automatically */
+boolean network_game_server_port_force_start(
+	struct network_game_server *server)
+{
+	if (!server || server->state != _network_game_server_state_pregame)
+		return FALSE;
+
+	network_event("network_game_server_port_force_start: forcing game start");
+	return network_game_server_start_network_game(server);
+}
+
+void network_game_server_port_log_state(
+	struct network_game_server *server)
+{
+	if (!server)
+		return;
+
+	network_event(
+		"server: state %d (pregame 0, ingame 1, postgame 2), countdown %s%s, %ld ms left; machines %d, a player on each %d, teams %d, players %ld of %ld, all pre-cached %d",
+		server->state,
+		server->countdown_state.active ? "active" : "inactive",
+		server->countdown_state.paused ? " (paused)" : "",
+		countdown_timer_get_time_remaining(&server->countdown_state.timer),
+		server_has_enough_machines(server),
+		server_has_a_player_on_each_machine(server),
+		!server_needs_more_teams(server),
+		(long)server->game.player_count,
+		(long)server->game.minimum_players,
+		network_game_server_have_all_machines_have_precached(server));
+}
+
+long network_game_server_port_player_count(
+	struct network_game_server *server)
+{
+	return server ? server->game.player_count : 0;
+}
+
+void network_game_server_port_set_minimum_players(
+	struct network_game_server *server,
+	long minimum_players)
+{
+	if (server)
+		server->game.minimum_players = (char)PIN(minimum_players, 1, MAXIMUM_NETWORK_PLAYER_COUNT);
+}
+
+/* port: a game a host runs afresh. A machine that asked to join as the last
+game ended, before the server switched to the pregame, is left waiting behind
+the one it holds (server->queued_player): the server refuses every later join
+with "network_game_add_player() failed" and sits in the lobby for good
+(network_test.c's host, which starts the next game by itself). */
+void network_game_server_port_clear_queued_players(
+	struct network_game_server *server)
+{
+	if (server)
+	{
+		server->queued_player_valid = FALSE;
+		server->waiting_player_count = 0;
+	}
+}
+
 /* port: a gametype's PC options: the menus' (player_ui_set_game_variant_options)
 when it is the menus' gametype, else its defaults */
 static void network_game_server_variant_options(
@@ -4385,14 +4506,35 @@ static boolean network_game_server_have_all_machines_have_precached(
 
 		if (network_game_server_client_machine_is_joined_to_game(server, machine))
 		{
-			boolean client_has_precached = TEST_FLAG(
-				server->client_machines[i].flags,
-				_network_client_machine_precached_bit);
-
-			if (!client_has_precached)
+			/* port: the local machine in a headless dedicated server has no
+			display or loading screen: it is always precached once the map is set */
+			if (network_game_server_client_machine_is_local(server, machine))
 			{
-				all_machines_have_precached = FALSE;
-				break;
+				SET_FLAG(server->client_machines[i].flags, _network_client_machine_precached_bit, TRUE);
+			}
+
+			{
+				boolean client_has_precached = TEST_FLAG(
+					server->client_machines[i].flags,
+					_network_client_machine_precached_bit);
+
+				if (!client_has_precached)
+				{
+					/* port: do not let a slow or dead remote machine hold the
+					countdown indefinitely: if it has been joined for more than
+					8 seconds without precaching, drop it from blocking the start */
+					unsigned long join_time = network_game_server_client_machine_join_times[machine->machine_index];
+					if (join_time > 0 && system_milliseconds() - join_time > 8000)
+					{
+						network_event("machine %ld precache timed out (>8s), proceeding without it", (long)i);
+						SET_FLAG(server->client_machines[i].flags, _network_client_machine_precached_bit, TRUE);
+					}
+					else
+					{
+						all_machines_have_precached = FALSE;
+						break;
+					}
+				}
 			}
 		}
 	}

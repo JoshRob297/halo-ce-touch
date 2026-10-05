@@ -12,6 +12,46 @@ Windows and Android. The decompilation is of the Xbox build 2342
 The port starts from the decompilation of [bnunu/halo-1](https://github.com/bnunu/halo-1).
 That project is a fork of [punpckhdq/halo](https://github.com/punpckhdq/halo).
 
+## Touch Controls & Android Enhancements (JoshRob297 Fork)
+
+This fork is [cybersecurity/halo-ce-universal](https://github.com/cybersecurity/halo-ce-universal)
+at `c3adcfe5` (netcode version 11) with the touchscreen the upstream port
+leaves out, taken from [theLlamaNet/halo-ce-android](https://github.com/theLlamaNet/halo-ce-android),
+and a map rotation for a host that runs on its own. The Linux and Windows
+targets, the build tooling and the netcode are upstream's: the dedicated
+server builds from this same tree.
+
+### Upstream pieces it inherits
+- **Server browser of public internet games** (`c04765d7`): the multiplayer
+  menu lists the games other machines host, with a lobby protocol of its own
+  (`port/linux/src/p2p_lobby.c`).
+- **Unload the menu map before a client's next game** (`601a4c1f`): the
+  client held the menu map while it loaded the next game, which the smaller
+  devices ran out of memory on, and crashed as a game ended.
+- **Free quit players' slots** (`133d6a5d`) and **survive kills and joins in
+  departed players' slots** (`809408c6`): a player who left kept its slot,
+  which refused every later join to a game that went on.
+
+### Features Added
+- **On-Screen Multi-Touch Controls**: Configurable layout with draggable/resizable controls, layout export/import via Android Storage Access Framework (`.halolayout`).
+- **Gyroscope Aiming**: Integrated motion sensor aiming alongside touch look.
+- **Haptic Rumble**: Device vibration tied directly to player damage and events.
+- **Netcode v11 Compatibility**: Fully compatible with the latest desktop/native netcode v11 multiplayer protocol and up to 128 players.
+- **Dedicated Server Map Rotation & Automated Start**: Server harness (`debug.network_test`) updated to support sequential map list rotation separated by `;` and automated countdown (`minimum_players = 1`), allowing dedicated servers to keep continuous map rotations.
+- **Desktop Target Preservation**: Maintained Linux and Windows toolchains and build targets alongside Android, preventing codebase divergence.
+- **Public Server Browser Listing**: A host the list is given (`debug.network_test`) is an Internet host as the menus make one, so it lists itself in everyone's server browser: `network.server_name` names the listing (15 characters, the game's own field) and `network.host_public` decides whether it is listed at all. Before, only a game started from Create Game > Internet was visible, and a headless host carried no name.
+
+### Bug Fixes & Code Corrections
+- **Pointer Aim Initialization Fix**: Corrected an uninitialized variable memory bug in `halo_linux_mouse_look` (`port/linux/src/xinput_sdl.c`) where the touch accumulation logic previously corrupted uninitialized desktop look registers under non-Android builds.
+- **Gametype Options Time Limit Integration**: Properly routed `debug.network_test_time` through `game_variant_options` and the PC menu handler rather than raw variant headers, allowing games to properly expire and rotate to the next level when unattended.
+- **Queued Join Recovery**: A machine that asked to join as a game ended was left behind the player the server held, and the server refused every later join (`network_game_add_player() failed`) for good. The host now drops those joins when its next game starts (`network_game_server_port_clear_queued_players`).
+
+### Credits & Acknowledgments
+- **Original Decompilation**: [bnunu/halo-1](https://github.com/bnunu/halo-1) & [punpckhdq/halo](https://github.com/punpckhdq/halo).
+- **Universal Port (Upstream)**: [cybersecurity/halo-ce-universal](https://github.com/cybersecurity/halo-ce-universal) - Native platform layer (Linux, Windows, Android), netcode rewrite (lockstep to distributed Valorant/Ares style simulation), high-resolution assets, and PC menus.
+- **Touch Controls Architecture**: [theLlamaNet/halo-ce-android](https://github.com/theLlamaNet/halo-ce-android) by theLlamaNet / FulGer - Created the multi-touch overlay, gyroscope driver, layout serialization, and touch-to-gamepad translation bridge.
+- **Fork Orchestration & Fixes**: [JoshRob297/halo-ce-touch](https://github.com/JoshRob297/halo-ce-touch) - Netcode v11 merge, desktop target fixups, automated server map rotation harness, and PAL Spanish asset integration.
+
 ## Download
 
 GitHub Actions builds the game for each commit. These links download the
