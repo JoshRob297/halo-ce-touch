@@ -146,17 +146,30 @@ static int movie_resolve(const char *name, const char **file)
 			continue;
 
 		suffix = filename + match;
-		if (length == match && movie_file_available(movies[movie].file_en))
 		{
-			if (file)
-				*file = movies[movie].file_en;
-			return movie;
-		}
-		if (length == match + 3 && !strncmp(suffix, "_es", 3) && movie_file_available(movies[movie].file_es))
-		{
-			if (file)
-				*file = movies[movie].file_es;
-			return movie;
+			unsigned long code_length = length - match;
+
+			/* (the engine names a language with a suffix, "_es" for Spanish
+			and none for English; the port's snprintf drops the leading
+			underscore, so both spellings are taken) */
+			if (code_length && *suffix == '_')
+			{
+				suffix++;
+				code_length--;
+			}
+
+			if (code_length == 0 && movie_file_available(movies[movie].file_en))
+			{
+				if (file)
+					*file = movies[movie].file_en;
+				return movie;
+			}
+			if (code_length == 2 && !strncmp(suffix, "es", 2) && movie_file_available(movies[movie].file_es))
+			{
+				if (file)
+					*file = movies[movie].file_es;
+				return movie;
+			}
 		}
 
 		/* a language the port has no file for: the engine tries the next */
@@ -180,8 +193,17 @@ int host_movie_open(const char *name)
 	const char *file = NULL;
 	int movie = movie_resolve(name, &file);
 
-	if (!movie || !file || !movie_player_ready)
+	if (!movie || !file)
+	{
+		host_logf(HOST_LOG_INFO, "movie: no file for \"%s\"", name ? name : "");
 		return 0;
+	}
+	if (!movie_player_ready)
+	{
+		/* (the Surface is not there yet: the player starts as soon as it is,
+		and the engine's own guard skips the movie if it never does) */
+		host_logf(HOST_LOG_INFO, "movie: waiting for the player's Surface");
+	}
 
 	pthread_mutex_lock(&movie_lock);
 	movies[movie].chosen = file;

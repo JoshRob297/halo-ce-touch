@@ -707,12 +707,18 @@ boolean file_exists(
 
 #ifdef HALO_ANDROID
 	/* port: the port has no Bink decoder and ships no .bik file: a movie the
-	device's player can show is the one the host has a transcoded file for
+	device's player can decode is the one the host has a file for
 	(host_movie.c), named with the language the engine is asking for. The
 	engine's own fallback (the loop around this call in attract_mode.c) walks
 	the languages in turn, so the one it can show is the one it takes. */
-	if (!strncmp(info->path, "d:\\bink\\", 7) && host_movie_exists(info->path))
-		return TRUE;
+	if (strstr(info->path, ".bik"))
+	{
+		int movie_exists = host_movie_exists(info->path);
+
+		error(_error_silent, "bink: file_exists(\"%s\") = %d", info->path, movie_exists);
+		if (movie_exists)
+			return TRUE;
+	}
 #endif
 
 	file_location_get_full_path(info->location, info->path, full_path);

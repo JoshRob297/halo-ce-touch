@@ -119,7 +119,7 @@ final class MoviePlayer implements SurfaceHolder.Callback, Runnable {
     }
 
     private void startMovie(int wanted) {
-        if (wanted <= 0 || !surfaceReady) return;
+        if (wanted <= 0) return;
 
         String asset = nativeAssetName(wanted);
         File directory = binkDirectory();
@@ -127,6 +127,15 @@ final class MoviePlayer implements SurfaceHolder.Callback, Runnable {
 
         File file = new File(directory, asset);
         if (!file.isFile()) return;
+
+        /* the SurfaceView must be shown for its Surface to exist at all: it is
+           made visible first and the player starts once it is (the poll below
+           comes back in 100 ms, and the engine's own guard covers a failure) */
+        if (view.getVisibility() != View.VISIBLE) {
+            view.setVisibility(View.VISIBLE);
+            if (overlay != null) overlay.setVisibility(View.INVISIBLE);
+        }
+        if (!surfaceReady) return;
 
         starting = true;
         try {
