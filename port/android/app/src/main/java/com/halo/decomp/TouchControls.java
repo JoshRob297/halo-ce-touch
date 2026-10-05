@@ -80,6 +80,7 @@ public final class TouchControls extends View implements SensorEventListener {
     private final AudioAttributes rumbleAttributes = new AudioAttributes.Builder()
         .setUsage(AudioAttributes.USAGE_GAME).setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build();
     private static native int nativeRumble();
+    private static native int nativeFps();
     private final Runnable rumblePoll = new Runnable() {
         public void run() {
             if (!deviceInputActive) return;
@@ -97,6 +98,17 @@ public final class TouchControls extends View implements SensorEventListener {
             postDelayed(this, 16);
         }
     };
+    /* the presented frames, from the host's frame counter */
+    private final Runnable fpsPoll = new Runnable() {
+        public void run() {
+            if (!deviceInputActive) return;
+            if (layout.fpsCounter) {
+                int fps = nativeFps();
+                if (fps != currentFps) { currentFps = fps; invalidate(); }
+            }
+            postDelayed(this, 250);
+        }
+    };
     private int lookPointer = -1;
     private float lookX, lookY;
     private float sensitivity;
@@ -110,6 +122,7 @@ public final class TouchControls extends View implements SensorEventListener {
     private float scale = 1, offsetX, offsetY;
     private int insetLeft, insetRight, insetTop, insetBottom;
     private boolean visible = true;
+    private int currentFps;
 
     private static native void nativeState(int lx, int ly, int rx, int ry,
                                           int lt, int rt, int buttons);
@@ -375,11 +388,11 @@ public final class TouchControls extends View implements SensorEventListener {
     public void startDeviceInput() {
         if (deviceInputActive) return;
         deviceInputActive = true;
-        gyroAim.reset(); updateSensors(); post(rumblePoll);
+        gyroAim.reset(); updateSensors(); post(rumblePoll); post(fpsPoll);
     }
 
     public void stopDeviceInput() {
-        deviceInputActive = false; removeCallbacks(rumblePoll);
+        deviceInputActive = false; removeCallbacks(rumblePoll); removeCallbacks(fpsPoll);
         updateSensors(); cancelRumble(); reset();
     }
 
@@ -430,7 +443,13 @@ public final class TouchControls extends View implements SensorEventListener {
         gyro.setOnCheckedChangeListener((button, enabled) -> {
             layout.gyroscopeEnabled = enabled; reset(); updateSensors(); saveLayout();
         });
-        panel.addView(rumble); panel.addView(gyro);
+        Switch fps = new Switch(getContext());
+        fps.setText("FPS counter");
+        fps.setChecked(layout.fpsCounter);
+        fps.setOnCheckedChangeListener((button, enabled) -> {
+            layout.fpsCounter = enabled; saveLayout(); invalidate();
+        });
+        panel.addView(rumble); panel.addView(gyro); panel.addView(fps);
         AlertDialog dialog = new AlertDialog.Builder(getContext()).setTitle("General")
             .setView(panel).setPositiveButton("Done", null).create();
         android.widget.Button manage = new android.widget.Button(getContext());
@@ -620,20 +639,32 @@ public final class TouchControls extends View implements SensorEventListener {
     }
 
     private void stick(Canvas canvas, int axis, float x, float y, String label) {
-        circle(canvas, x, y, layout.radius(LEFT), label, false, 11*layout.sizeScale(LEFT));
-        circle(canvas, x + axes[axis]/32767f*layout.radius(LEFT), y + axes[axis+1]/32767f*layout.radius(LEFT),
-               24*layout.sizeScale(LEFT), "", held(LEFT));
+        circle(canvas, x, y, layout.radius(LEFT), "", false, 11*layout.sizeScale(LEFT));
+        float knobX = x + axes[axis]/32767f*layout.radius(LEFT);
+        float knobY = y + axes[axis+1]/32767f*layout.radius(LEFT);
+        circle(canvas, knobX, knobY, 24*layout.sizeScale(LEFT), "", held(LEFT));
+        TouchIcons.draw(canvas, paint, LEFT, knobX, knobY, 18*layout.sizeScale(LEFT), held(LEFT));
     }
 
     @Override protected void onDraw(Canvas canvas) {
+        if (layout.fpsCounter && !editing && !optionsOpen) {
+            paint.setStyle(Paint.Style.FILL); paint.setColor(Color.WHITE);
+            paint.setTextAlign(Paint.Align.LEFT); paint.setTextSize(18*scale);
+            canvas.drawText("FPS: "+currentFps, insetLeft+12*scale, insetTop+24*scale, paint);
+        }
         canvas.save(); canvas.translate(offsetX, offsetY); canvas.scale(scale, scale);
-        if (!editing) circle(canvas, logicalWidth/2, toolbarY(), 28, visible ? "Hide" : "Touch", false);
+        if (!editing) {
+            circle(canvas, logicalWidth/2, toolbarY(), 28, "", false);
+            TouchIcons.draw(canvas, paint, 19, logicalWidth/2, toolbarY(), 20, visible);
+        }
         if (visible) {
             if (layout.shown(LEFT)) stick(canvas, 0, layout.x(LEFT), layout.y(LEFT), "Move");
             for (int i = 0; i < layout.size(); i++) {
                 if (!layout.shown(i) || layout.type(i) == LEFT) continue;
-                Button b = buttons[layout.type(i)];
-                circle(canvas, layout.x(i), layout.y(i), layout.radius(i), b.label, held(i) || dragControl == i, 11*layout.sizeScale(i));
+                boolean active = held(i) || dragControl == i;
+                circle(canvas, layout.x(i), layout.y(i), layout.radius(i), "", active, 11*layout.sizeScale(i));
+                TouchIcons.draw(canvas, paint, layout.type(i), layout.x(i), layout.y(i),
+                    layout.radius(i)*0.72f, active);
             }
         }
         editorButton(canvas);

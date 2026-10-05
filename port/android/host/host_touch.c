@@ -13,6 +13,8 @@ static uint32_t cheat_pending, cheat_busy;
 static int32_t cheat_commands[16], cheat_status[16];
 static int rumble_amplitude;
 static struct timespec rumble_time;
+static int frame_count, frame_fps;
+static struct timespec frame_time;
 
 void host_touch_rumble(unsigned int low, unsigned int high)
 {
@@ -35,6 +37,34 @@ JNIEXPORT jint JNICALL Java_com_halo_decomp_TouchControls_nativeRumble(JNIEnv *e
         amplitude = 0;
     pthread_mutex_unlock(&touch_lock);
     return amplitude;
+}
+
+/* the render thread counts the presented frames (host_sdl.c, after the swap) */
+void host_touch_frame(void)
+{
+	struct timespec now;
+	double elapsed;
+
+	clock_gettime(CLOCK_MONOTONIC, &now);
+	pthread_mutex_lock(&touch_lock);
+	if (!frame_time.tv_sec) frame_time = now;
+	++frame_count;
+	elapsed = now.tv_sec-frame_time.tv_sec + (now.tv_nsec-frame_time.tv_nsec)/1e9;
+	if (elapsed >= 0.5) {
+		frame_fps = (int)(frame_count/elapsed + 0.5);
+		frame_count = 0; frame_time = now;
+	}
+	pthread_mutex_unlock(&touch_lock);
+}
+
+JNIEXPORT jint JNICALL Java_com_halo_decomp_TouchControls_nativeFps(JNIEnv *env, jclass cls)
+{
+	int fps;
+	(void)env; (void)cls;
+	pthread_mutex_lock(&touch_lock);
+	fps = frame_fps;
+	pthread_mutex_unlock(&touch_lock);
+	return fps;
 }
 
 JNIEXPORT void JNICALL Java_com_halo_decomp_TouchControls_nativeLook(

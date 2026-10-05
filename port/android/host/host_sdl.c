@@ -164,11 +164,17 @@ int host_sdl_gl_set_swap_interval(int interval)
 	return SDL_GL_SetSwapInterval(interval);
 }
 
+void host_touch_frame(void); /* the frame counter the touch overlay's FPS reads */
+
 int host_sdl_gl_swap_window(uint32_t window)
 {
 	SDL_Window *object = handle_get(window, _handle_window);
+	int result;
 
-	return object ? SDL_GL_SwapWindow(object) : 0;
+	if (!object) return 0;
+	result = SDL_GL_SwapWindow(object);
+	host_touch_frame();
+	return result;
 }
 
 /* ---------- events */

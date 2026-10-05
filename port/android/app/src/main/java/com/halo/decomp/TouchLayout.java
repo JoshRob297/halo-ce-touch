@@ -28,7 +28,7 @@ final class TouchLayout {
     private final ArrayList<Control> controls = new ArrayList<>();
 
     private float width = 960, height = 540;
-    boolean rumbleEnabled = true, gyroscopeEnabled = false;
+    boolean rumbleEnabled = true, gyroscopeEnabled = false, fpsCounter = false;
     static final float MIN_SIZE = 0.5f, MAX_SIZE = 2f;
 
     void bounds(float width, float height) {
@@ -91,7 +91,8 @@ final class TouchLayout {
         if (!validSensitivity(sensitivity)) throw new IllegalArgumentException("Invalid sensitivity");
         Properties values = new Properties();
         values.setProperty("format", "halo-touch-layout");
-        values.setProperty("version", "2");
+        values.setProperty("version", "3");
+        values.setProperty("fps-counter", Boolean.toString(fpsCounter));
         values.setProperty("rumble", Boolean.toString(rumbleEnabled));
         values.setProperty("gyroscope", Boolean.toString(gyroscopeEnabled));
         values.setProperty("count", Integer.toString(size()));
@@ -129,7 +130,7 @@ final class TouchLayout {
             values.load(new StringReader(text));
             String version = values.getProperty("version");
             if (!"halo-touch-layout".equals(values.getProperty("format")) ||
-                    !("1".equals(version) || "2".equals(version)))
+                    !("1".equals(version) || "2".equals(version) || "3".equals(version)))
                 throw new IllegalArgumentException("Unsupported layout file");
             int count = Integer.parseInt(values.getProperty("count"));
             float sensitivity = Float.parseFloat(values.getProperty("sensitivity"));
@@ -137,10 +138,11 @@ final class TouchLayout {
                 throw new IllegalArgumentException("Invalid layout settings");
             TouchLayout layout = new TouchLayout();
             layout.controls.clear();
-            if ("2".equals(version)) {
+            if ("2".equals(version) || "3".equals(version)) {
                 layout.rumbleEnabled = readBoolean(values, "rumble");
                 layout.gyroscopeEnabled = readBoolean(values, "gyroscope");
             }
+            if ("3".equals(version)) layout.fpsCounter = readBoolean(values, "fps-counter");
             for (int i = 0; i < count; i++) {
                 String key = "control."+i+".";
                 int type = Integer.parseInt(values.getProperty(key+"type"));
