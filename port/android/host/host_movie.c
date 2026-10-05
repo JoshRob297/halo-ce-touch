@@ -18,6 +18,7 @@ The guest calls host_movie_*; the player calls the natives below (every
 #include <jni.h>
 #include <pthread.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <string.h>
 #include <time.h>
 
@@ -33,12 +34,15 @@ enum
 };
 
 /* the part of the requested path that names the movie, the asset the player
-opens, and the frames of the transcoded file (an estimate: the frame the
-engine reads is taken from the player's position and duration) */
+opens for each language (the suffix the engine puts in the name, attract_mode.c),
+and the frames of the transcoded file (an estimate: the frame the engine reads
+is taken from the player's position and duration). English is the name with no
+suffix; a language with no file leaves the engine to try the next one. */
 static struct
 {
 	const char *match;
-	const char *file;
+	const char *file_es;
+	const char *file_en;
 	unsigned long width;
 	unsigned long height;
 	unsigned long frames;
@@ -47,14 +51,47 @@ static struct
 	int finished;
 	unsigned long position_ms;
 	unsigned long duration_ms;
+	/* the asset the player opens, chosen from the language asked for */
+	const char *chosen;
 } movies[_movie_count] = {
-	{ "",         "",                   0,   0,   0,    0, 0, 0,  0, 0 },
-	{ "intro", "intro_es.mp4", 640, 480, 481, 0, 0, 0, 0, 0 },
-	{ "credits", "credits_es.mp4", 640, 480, 5214, 0, 0, 0, 0, 0 },
-	{ "attract1", "attract1_es.mp4", 640, 480, 4538, 0, 0, 0, 0, 0 },
-	{ "attract2", "attract2_es.mp4", 640, 480, 3982, 0, 0, 0, 0, 0 },
-	{ "attract3", "attract3_es.mp4", 640, 480, 2042, 0, 0, 0, 0, 0 },
+	{ "",         "",                "",              0,   0,   0,    0, 0, 0,  0, 0, NULL },
+	{ "intro",    "intro_es.mp4",    "intro.mp4",     640, 480, 481,  0, 0, 0,  0, 0, NULL },
+	{ "credits",  "credits_es.mp4",  "credits.mp4",   640, 480, 5214, 0, 0, 0,  0, 0, NULL },
+	{ "attract1", "attract1_es.mp4", "attract1.mp4",  640, 480, 4538, 0, 0, 0,  0, 0, NULL },
+	{ "attract2", "attract2_es.mp4", "attract2.mp4",  640, 480, 3982, 0, 0, 0,  0, 0, NULL },
+	{ "attract3", "attract3_es.mp4", "attract3.mp4",  640, 480, 2042, 0, 0, 0,  0, 0, NULL },
 };
+
+/* the transcoded files the APK shipped, as MoviePlayer.java lists them at
+start-up: a language only plays when its file is really here, so the game
+falls back to the one it has (and adding a file is all a new language needs) */
+enum
+{
+	MAXIMUM_MOVIE_ASSETS = 32,
+	MOVIE_ASSET_NAME_SIZE = 40,
+};
+
+static struct
+{
+	char name[MOVIE_ASSET_NAME_SIZE];
+} movie_assets[MAXIMUM_MOVIE_ASSETS];
+static int movie_asset_count;
+
+static int movie_file_available(const char *file)
+{
+	int index;
+
+	if (!file)
+		return 0;
+
+	for (index = 0; index < movie_asset_count; index++)
+	{
+		if (!strcmp(movie_assets[index].name, file))
+			return 1;
+	}
+
+	return 0;
+}
 
 static pthread_mutex_t movie_lock = PTHREAD_MUTEX_INITIALIZER;
 
@@ -74,30 +111,80 @@ static int64_t movie_now_ms(void)
 	return (int64_t)now.tv_sec * 1000 + now.tv_nsec / 1000000;
 }
 
-static int movie_from_name(const char *name)
+/* the movie a requested path names, and the asset its language needs.
+
+The engine builds the name from the game's language (attract_mode.c:
+"d:\\bink\\intro<language>.bik", the suffix "_es" for Spanish and none for
+English) and asks for each language in turn until one exists: the port says
+which of them it has a transcoded file for, and a language with no file
+resolves to none so the engine goes on to the next. */
+static int movie_resolve(const char *name, const char **file)
 {
+	const char *filename;
+	const char *dot;
+	unsigned long length;
 	int movie;
 
+	if (file)
+		*file = NULL;
 	if (!name || !name[0])
 		return _movie_none;
 
+	filename = strrchr(name, '\\');
+	if (!filename)
+		filename = strrchr(name, '/');
+	filename = filename ? filename + 1 : name;
+	dot = strrchr(filename, '.');
+	length = dot ? (unsigned long)(dot - filename) : (unsigned long)strlen(filename);
+
 	for (movie = 1; movie < _movie_count; movie++)
 	{
-		if (strstr(name, movies[movie].match))
+		unsigned long match = (unsigned long)strlen(movies[movie].match);
+		const char *suffix;
+
+		if (length < match || strncmp(filename, movies[movie].match, match))
+			continue;
+
+		suffix = filename + match;
+		if (length == match && movie_file_available(movies[movie].file_en))
+		{
+			if (file)
+				*file = movies[movie].file_en;
 			return movie;
+		}
+		if (length == match + 3 && !strncmp(suffix, "_es", 3) && movie_file_available(movies[movie].file_es))
+		{
+			if (file)
+				*file = movies[movie].file_es;
+			return movie;
+		}
+
+		/* a language the port has no file for: the engine tries the next */
+		return _movie_none;
 	}
 
 	return _movie_none;
 }
 
+/* whether the host can play the movie a requested path names. The engine
+checks that a movie's file exists before opening it (attract_mode.c), the port
+ships no Bink file, and so that check is answered here: the movie exists when
+the host has a transcoded file for it (file_exists in files_windows.c). */
+int host_movie_exists(const char *name)
+{
+	return movie_resolve(name, NULL) != _movie_none;
+}
+
 int host_movie_open(const char *name)
 {
-	int movie = movie_from_name(name);
+	const char *file = NULL;
+	int movie = movie_resolve(name, &file);
 
-	if (!movie || !movie_player_ready)
+	if (!movie || !file || !movie_player_ready)
 		return 0;
 
 	pthread_mutex_lock(&movie_lock);
+	movies[movie].chosen = file;
 	movies[movie].requested = 1;
 	movies[movie].playing = 1;
 	movies[movie].finished = 0;
@@ -182,6 +269,48 @@ void host_movie_close(int movie)
 }
 
 /* ---------- what the player (MoviePlayer.java) calls */
+
+/* one of the files the APK shipped (MoviePlayer.java lists the movie folder
+at start-up): the languages the port can play are the ones registered here */
+JNIEXPORT void JNICALL Java_com_halo_decomp_MoviePlayer_nativeRegisterAsset(JNIEnv *env, jclass cls, jstring name)
+{
+	const char *utf8;
+
+	(void)cls;
+
+	if (!name)
+		return;
+
+	utf8 = (*env)->GetStringUTFChars(env, name, NULL);
+	if (!utf8)
+		return;
+
+	if (movie_asset_count < MAXIMUM_MOVIE_ASSETS)
+	{
+		if (snprintf(movie_assets[movie_asset_count].name, MOVIE_ASSET_NAME_SIZE, "%s", utf8) > 0)
+			movie_asset_count++;
+	}
+
+	(*env)->ReleaseStringUTFChars(env, name, utf8);
+}
+
+/* the asset the player opens for the movie the guest asked for: the language
+the engine chose (MoviePlayer.java keeps no table of its own) */
+JNIEXPORT jstring JNICALL Java_com_halo_decomp_MoviePlayer_nativeAssetName(JNIEnv *env, jclass cls, jint movie)
+{
+	const char *name;
+
+	(void)cls;
+
+	if (!((movie) > 0 && (movie) < _movie_count))
+		return NULL;
+
+	pthread_mutex_lock(&movie_lock);
+	name = movies[movie].chosen;
+	pthread_mutex_unlock(&movie_lock);
+
+	return name ? (*env)->NewStringUTF(env, name) : NULL;
+}
 
 JNIEXPORT jint JNICALL Java_com_halo_decomp_MoviePlayer_nativePoll(JNIEnv *env, jclass cls)
 {

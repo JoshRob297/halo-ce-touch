@@ -27,11 +27,11 @@ final class MoviePlayer implements SurfaceHolder.Callback, MediaPlayer.OnComplet
     private static native void nativeStarted(int movie);
     private static native void nativeProgress(int movie, int positionMs, int durationMs);
     private static native void nativeFinished(int movie);
-
-    /* the ids the native side uses (host_movie.c) */
-    private static final String[] FILES = {
-        "", "intro_es.mp4", "credits_es.mp4", "attract1_es.mp4", "attract2_es.mp4", "attract3_es.mp4"
-    };
+    /* the asset the movie the guest asked for plays (the language the engine
+       chose: host_movie.c resolves it) */
+    private static native String nativeAssetName(int movie);
+    /* one of the files the APK shipped: the languages the port can play */
+    private static native void nativeRegisterAsset(String name);
 
     private final Context context;
     private final SurfaceView view;
@@ -52,7 +52,20 @@ final class MoviePlayer implements SurfaceHolder.Callback, MediaPlayer.OnComplet
         view.setVisibility(View.GONE);
         layout.addView(view, new ViewGroup.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        registerAssets();
         handler.postDelayed(this, 100);
+    }
+
+    /* the movies the APK shipped: what the native side may offer (a language
+       with no file falls back to the one that is here) */
+    private void registerAssets() {
+        try {
+            String[] files = context.getAssets().list("cinematics");
+            if (files != null) {
+                for (String name : files) nativeRegisterAsset(name);
+            }
+        } catch (IOException ignored) {
+        }
     }
 
     /* SurfaceHolder.Callback */
@@ -102,12 +115,15 @@ final class MoviePlayer implements SurfaceHolder.Callback, MediaPlayer.OnComplet
     }
 
     private void startMovie(int wanted) {
-        if (wanted <= 0 || wanted >= FILES.length || !surfaceReady) return;
+        if (wanted <= 0 || !surfaceReady) return;
+
+        String asset = nativeAssetName(wanted);
+        if (asset == null || asset.isEmpty()) return;
 
         AssetFileDescriptor file = null;
         starting = true;
         try {
-            file = context.getAssets().openFd("cinematics/" + FILES[wanted]);
+            file = context.getAssets().openFd("cinematics/" + asset);
             MediaPlayer started = new MediaPlayer();
             started.setDataSource(file.getFileDescriptor(), file.getStartOffset(), file.getLength());
             started.setSurface(view.getHolder().getSurface());

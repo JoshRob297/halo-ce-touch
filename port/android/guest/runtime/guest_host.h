@@ -120,6 +120,9 @@ The port has no Bink decoder, so the movies (port/linux/src/bink_null.c) are
 played by the Android side: the guest asks for one here and the host plays the
 transcoded file over the game. The handle is the movie's 1-based id. */
 int host_movie_open(const char *name);
+/* whether the host has a transcoded file for the movie a requested
+path names (the engine's file check answers with it on Android) */
+int host_movie_exists(const char *name);
 unsigned long host_movie_width(int movie);
 unsigned long host_movie_height(int movie);
 unsigned long host_movie_frames(int movie);
