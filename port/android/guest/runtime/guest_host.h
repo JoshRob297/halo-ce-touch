@@ -74,6 +74,12 @@ int host_sdl_scancode_from_name(const char *name);
 int host_sdl_show_toast(const char *message, int duration, int gravity, int x, int y);
 int host_sdl_show_simple_message_box(unsigned int flags, const char *title, const char *message);
 int host_sdl_get_gamepads(unsigned int *ids, int capacity);
+void host_touch_read(int *state);
+void host_touch_rumble(unsigned int low, unsigned int high);
+void host_touch_look_read(float *delta);
+unsigned int host_touch_cheats_read(int *commands);
+void host_touch_cheat_result(int id, int status);
+void host_touch_cheat_sync(int id, int active);
 unsigned int host_sdl_open_gamepad(unsigned int id);
 unsigned int host_sdl_gamepad_from_id(unsigned int id);
 int host_sdl_gamepad_axis(unsigned int gamepad, int axis);
@@ -110,13 +116,12 @@ void host_android_path(int which, char *buffer, unsigned int size);
 
 /* ---------- movies (port/android/host/host_movie.c)
 
-The port has no Bink decoder (the RAD SDK is proprietary), so the movies
-(port/linux/src/bink_null.c) are played by the Android side: the guest asks
-for one here and the host decodes the disc's own file (bink/*.bik) over the
-game. The handle is the movie's 1-based id. */
+The port has no Bink decoder, so the movies (port/linux/src/bink_null.c) are
+played by the Android side: the guest asks for one here and the host plays the
+transcoded file over the game. The handle is the movie's 1-based id. */
 int host_movie_open(const char *name);
-/* whether the host has a file for the movie a requested path names (the
-engine's own file check answers with it on Android) */
+/* whether the host has a transcoded file for the movie a requested
+path names (the engine's file check answers with it on Android) */
 int host_movie_exists(const char *name);
 unsigned long host_movie_width(int movie);
 unsigned long host_movie_height(int movie);

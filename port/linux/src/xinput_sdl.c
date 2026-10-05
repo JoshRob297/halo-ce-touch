@@ -42,6 +42,9 @@ drive the controller.
 #include "halo_keyboard.h"
 
 #include <SDL3/SDL.h>
+#ifdef HALO_ANDROID
+#include "guest_host.h"
+#endif
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -145,10 +148,37 @@ int halo_linux_mouse_look(short gamepad_index, float *yaw, float *pitch)
 	mouse_pending_y = 0.0f;
 	mouse_polls_unconsumed = 0;
 	pthread_mutex_unlock(&mouse_lock);
+#ifdef HALO_ANDROID
+	{
+		float delta[2];
+		host_touch_look_read(delta);
+		/* Logical display pixels, already scaled by the touch sensitivity. */
+		*yaw = -delta[0] * scale;
+		*pitch = -delta[1] * scale;
+        if (delta[0] != 0.0f || delta[1] != 0.0f)
+        {
+            pthread_mutex_lock(&mouse_lock);
+            mouse_aimed_ms = SDL_GetTicks();
+            pthread_mutex_unlock(&mouse_lock);
+        }
+	}
+#endif
 	if (x == 0.0f && y == 0.0f)
+#ifdef HALO_ANDROID
+		/* the touch look delta above left yaw and pitch set */
+		return *yaw != 0.0f || *pitch != 0.0f;
+#else
+		/* Linux and Windows pass uninitialised outputs, so the
+		 * mouse motion replaces them as it always has */
 		return FALSE;
+#endif
+#ifdef HALO_ANDROID
+	*yaw += -x * scale * mouse_sensitivity();
+	*pitch += (invert ? y : -y) * scale * vertical_sensitivity;
+#else
 	*yaw = -x * scale * mouse_sensitivity();
 	*pitch = (invert ? y : -y) * scale * vertical_sensitivity;
+#endif
 	return TRUE;
 }
 
@@ -744,6 +774,36 @@ static void sdl_gamepad_state(SDL_Gamepad *gamepad, XINPUT_GAMEPAD *pad)
 	if (abs(value) > abs(pad->sThumbRY)) pad->sThumbRY = value;
 }
 
+#ifdef HALO_ANDROID
+static void touch_gamepad_state(XINPUT_GAMEPAD *pad)
+{
+	int state[7], index;
+	static const WORD digital[] = {
+		0, 0, 0, 0, XINPUT_GAMEPAD_BACK, 0, XINPUT_GAMEPAD_START,
+		XINPUT_GAMEPAD_LEFT_THUMB, XINPUT_GAMEPAD_RIGHT_THUMB,
+		0, 0, XINPUT_GAMEPAD_DPAD_UP, XINPUT_GAMEPAD_DPAD_DOWN,
+		XINPUT_GAMEPAD_DPAD_LEFT, XINPUT_GAMEPAD_DPAD_RIGHT
+	};
+	static const int analog[] = {
+		XINPUT_GAMEPAD_A, XINPUT_GAMEPAD_B, XINPUT_GAMEPAD_X, XINPUT_GAMEPAD_Y
+	};
+	SHORT *sticks[] = { &pad->sThumbLX, &pad->sThumbLY, &pad->sThumbRX, &pad->sThumbRY };
+	host_touch_read(state);
+	for (index = 0; index < 4; index++)
+	{
+		SHORT value = stick((Sint16)state[index], index == 1 || index == 3);
+		if (abs(value) > abs(*sticks[index])) *sticks[index] = value;
+		merge_button(pad, analog[index], (state[6] & (1 << index)) != 0);
+	}
+	for (index = 0; index < (int)(sizeof(digital) / sizeof(digital[0])); index++)
+		if (state[6] & (1 << index)) pad->wButtons |= digital[index];
+	merge_button(pad, XINPUT_GAMEPAD_WHITE, (state[6] & (1 << 9)) != 0);
+	merge_button(pad, XINPUT_GAMEPAD_BLACK, (state[6] & (1 << 10)) != 0);
+	if (state[4]) pad->bAnalogButtons[XINPUT_GAMEPAD_LEFT_TRIGGER] = 255;
+	if (state[5]) pad->bAnalogButtons[XINPUT_GAMEPAD_RIGHT_TRIGGER] = 255;
+}
+#endif
+
 /* ---------- XAPI */
 
 VOID WINAPI XInitDevices(DWORD preallocation_type_count, PXDEVICE_PREALLOC_TYPE preallocation_types)
@@ -861,6 +921,9 @@ DWORD WINAPI XInputGetState(HANDLE device, PXINPUT_STATE state)
 		}
 		if (port_gamepad(gamepads, count, 0))
 			sdl_gamepad_state(gamepads[0], &state->Gamepad);
+#ifdef HALO_ANDROID
+		touch_gamepad_state(&state->Gamepad);
+#endif
 		test_input_gamepad(&state->Gamepad);
 		if (abs(state->Gamepad.sThumbRX) > STICK_AIMING_DEFLECTION ||
 			abs(state->Gamepad.sThumbRY) > STICK_AIMING_DEFLECTION)
