@@ -51,8 +51,9 @@ typedef struct
 	AVFrame *frame;
 	AVFrame *sound;
 	AVPacket *packet;
-	uint8_t *rgba;
-	int rgba_pitch;
+	/* the size the scaler is set up for (the picture inside the window) */
+	int scaler_width;
+	int scaler_height;
 
 	ANativeWindow *window;
 	int width;
@@ -111,29 +112,70 @@ static void bink_wait_for(BinkPlayer *player, int64_t ms)
 	}
 }
 
-/* the decoded frame, RGBA, to the Surface */
+/* the decoded frame to the Surface: the picture's own shape kept (black
+around it), scaled into the window the view gives */
 static void bink_draw(BinkPlayer *player, AVFrame *frame)
 {
 	ANativeWindow_Buffer buffer;
-	uint8_t *rows[4] = { player->rgba, NULL, NULL, NULL };
-	int pitches[4] = { player->rgba_pitch, 0, 0, 0 };
+	int width, height, x, y;
 
-	if (!player->window || !player->rgba)
+	if (!player->window || !player->video)
 		return;
-
-	sws_scale(player->scaler, (const uint8_t *const *)frame->data, frame->linesize,
-		0, player->height, rows, pitches);
 
 	if (ANativeWindow_lock(player->window, &buffer, NULL) != 0)
 		return;
 
-	if (buffer.bits)
+	if (buffer.format != WINDOW_FORMAT_RGBA_8888 || buffer.width <= 0 || buffer.height <= 0)
 	{
-		int y;
+		ANativeWindow_unlockAndPost(player->window);
+		return;
+	}
 
-		for (y = 0; y < player->height && y < buffer.height; y++)
-			memcpy((uint8_t *)buffer.bits + (size_t)y * buffer.stride * 4,
-				player->rgba + (size_t)y * player->rgba_pitch, (size_t)player->width * 4);
+	/* the picture fits inside the window, the side that limits it */
+	if (buffer.width * player->height <= buffer.height * player->width)
+	{
+		width = buffer.width;
+		height = player->height * buffer.width / player->width;
+	}
+	else
+	{
+		height = buffer.height;
+		width = player->width * buffer.height / player->height;
+	}
+	if (width < 1)
+		width = 1;
+	if (height < 1)
+		height = 1;
+	x = (buffer.width - width) / 2;
+	y = (buffer.height - height) / 2;
+	if (x < 0)
+		x = 0;
+	if (y < 0)
+		y = 0;
+
+	if (player->scaler && (player->scaler_width != width || player->scaler_height != height))
+	{
+		sws_freeContext(player->scaler);
+		player->scaler = NULL;
+	}
+	if (!player->scaler)
+	{
+		player->scaler = sws_getContext(player->width, player->height, player->video->pix_fmt,
+			width, height, AV_PIX_FMT_RGBA, SWS_BILINEAR, NULL, NULL, NULL);
+		player->scaler_width = width;
+		player->scaler_height = height;
+	}
+
+	if (buffer.bits && player->scaler)
+	{
+		uint8_t *rows[4] = {
+			(uint8_t *)buffer.bits + ((size_t)y * buffer.stride + x) * 4, NULL, NULL, NULL
+		};
+		int pitches[4] = { buffer.stride * 4, 0, 0, 0 };
+
+		memset(buffer.bits, 0, (size_t)buffer.stride * buffer.height * 4);
+		sws_scale(player->scaler, (const uint8_t *const *)frame->data, frame->linesize,
+			0, player->height, rows, pitches);
 	}
 
 	ANativeWindow_unlockAndPost(player->window);
@@ -276,7 +318,6 @@ static void bink_free(BinkPlayer *player)
 	avcodec_free_context(&player->audio);
 	if (player->format)
 		avformat_close_input(&player->format);
-	av_free(player->rgba);
 	pthread_mutex_destroy(&player->lock);
 	free(player);
 }
@@ -408,20 +449,15 @@ JNIEXPORT jlong JNICALL Java_com_halo_decomp_BinkPlayer_nativeOpen(
 		}
 	}
 
-	player->scaler = sws_getContext(player->width, player->height, player->video->pix_fmt,
-		player->width, player->height, AV_PIX_FMT_RGBA, SWS_BILINEAR, NULL, NULL, NULL);
-	player->rgba_pitch = player->width * 4;
-	player->rgba = av_malloc((size_t)player->rgba_pitch * player->height);
 	player->frame = av_frame_alloc();
 	player->sound = av_frame_alloc();
 	player->packet = av_packet_alloc();
 
 	player->window = ANativeWindow_fromSurface(env, surface);
 	if (player->window)
-		ANativeWindow_setBuffersGeometry(player->window, player->width, player->height,
-			WINDOW_FORMAT_RGBA_8888);
+		ANativeWindow_setBuffersGeometry(player->window, 0, 0, WINDOW_FORMAT_RGBA_8888);
 
-	if (!player->scaler || !player->rgba || !player->frame || !player->sound || !player->packet)
+	if (!player->frame || !player->sound || !player->packet)
 	{
 		LOGE("the movie could not be set up");
 		bink_free(player);

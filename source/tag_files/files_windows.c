@@ -711,14 +711,8 @@ boolean file_exists(
 	(host_movie.c), named with the language the engine is asking for. The
 	engine's own fallback (the loop around this call in attract_mode.c) walks
 	the languages in turn, so the one it can show is the one it takes. */
-	if (strstr(info->path, ".bik"))
-	{
-		int movie_exists = host_movie_exists(info->path);
-
-		error(_error_silent, "bink: file_exists(\"%s\") = %d", info->path, movie_exists);
-		if (movie_exists)
-			return TRUE;
-	}
+	if (strstr(info->path, ".bik") && host_movie_exists(info->path))
+		return TRUE;
 #endif
 
 	file_location_get_full_path(info->location, info->path, full_path);
