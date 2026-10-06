@@ -126,6 +126,7 @@ public final class TouchControls extends View implements SensorEventListener {
     private int insetLeft, insetRight, insetTop, insetBottom;
     private boolean visible = true;
     private int currentFps;
+    private StartupCheats startupCheats;
 
     private static native void nativeState(int lx, int ly, int rx, int ry,
                                           int lt, int rt, int buttons);
@@ -139,6 +140,12 @@ public final class TouchControls extends View implements SensorEventListener {
             vibrator = manager == null ? null : manager.getDefaultVibrator();
         } else vibrator = (Vibrator) context.getSystemService(Context.VIBRATOR_SERVICE);
         preferences = context.getSharedPreferences("touch-layout-v1", Context.MODE_PRIVATE);
+        try {
+            java.io.File folder = context.getExternalFilesDir(null);
+            if (folder != null) startupCheats = new StartupCheats(new java.io.File(folder, "init.txt").toPath());
+        } catch (java.io.IOException e) {
+            Toast.makeText(context, "Cannot read init.txt: "+e.getMessage(), Toast.LENGTH_LONG).show();
+        }
         String configuration = preferences.getString("configuration", null);
         if (configuration != null) {
             try {
@@ -356,12 +363,13 @@ public final class TouchControls extends View implements SensorEventListener {
     private void showOptions() {
         optionsOpen = true; reset();
         AlertDialog dialog = new AlertDialog.Builder(getContext()).setTitle("Options")
-            .setItems(new String[]{"General", "Edit buttons layout", "Look sensitivity", "Field of view", "Cheats"}, (d, which) -> {
+            .setItems(new String[]{"General", "Edit buttons layout", "Look sensitivity", "Field of view", "Cheats", "Startup cheats"}, (d, which) -> {
                 if (which == 0) post(this::showGeneral);
                 else if (which == 1) { editing = true; visible = true; invalidate(); }
                 else if (which == 2) post(this::showSensitivity);
                 else if (which == 3) post(this::showFieldOfView);
-                else post(this::showCheats);
+                else if (which == 4) post(this::showCheats);
+                else post(this::showStartupCheats);
             }).setNegativeButton("Close", null).create();
         dialog.setOnDismissListener(d -> { optionsOpen = false; reset(); });
         dialog.show();
@@ -652,6 +660,44 @@ public final class TouchControls extends View implements SensorEventListener {
         };
         dialog.setOnDismissListener(d -> { removeCallbacks(refresh); optionsOpen = false; reset(); });
         dialog.show(); refresh.run();
+    }
+
+    private void showStartupCheats() {
+        optionsOpen = true; reset();
+        String[] names = {"Invincibility", "Jetpack", "Infinite ammo", "Bump possession",
+            "Super jump", "Reflexive damage", "Medusa", "Omnipotent", "Controller cheats",
+            "Bottomless clip", "Active camouflage (local player)", "Active camouflage",
+            "All powerups", "All vehicles", "All weapons", "Teleport to camera"};
+        LinearLayout list = new LinearLayout(getContext()); list.setOrientation(LinearLayout.VERTICAL);
+        TextView[] rows = new TextView[names.length];
+        for (int i = 0; i < names.length; i++) {
+            final int id = i;
+            TextView row = rows[i] = new TextView(getContext());
+            row.setTextColor(Color.WHITE); row.setTextSize(17); row.setPadding(24, 16, 24, 16);
+            boolean on = startupCheats != null && startupCheats.enabled(id);
+            row.setText(names[i] + (on ? " [ON]" : " [OFF]"));
+            row.setBackgroundColor(on ? 0xff267447 : 0xff303e4a);
+            row.setOnClickListener(v -> {
+                if (startupCheats == null) {
+                    Toast.makeText(getContext(), "Game storage unavailable", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                try {
+                    startupCheats.toggle(id);
+                    boolean now = startupCheats.enabled(id);
+                    row.setText(names[id] + (now ? " [ON]" : " [OFF]"));
+                    row.setBackgroundColor(now ? 0xff267447 : 0xff303e4a);
+                } catch (java.io.IOException e) {
+                    Toast.makeText(getContext(), "Cannot save init.txt: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                }
+            });
+            list.addView(row);
+        }
+        ScrollView scroll = new ScrollView(getContext()); scroll.addView(list);
+        AlertDialog dialog = new AlertDialog.Builder(getContext()).setTitle("Startup cheats")
+            .setView(scroll).setPositiveButton("Done", null).create();
+        dialog.setOnDismissListener(d -> { optionsOpen = false; reset(); });
+        dialog.show();
     }
 
     private void circle(Canvas canvas, float x, float y, float radius, String label, boolean active) {
