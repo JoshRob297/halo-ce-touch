@@ -68,3 +68,6 @@ host_movie_frames
 host_movie_frame
 host_movie_finished
 host_movie_close
+
+host_touch_ui_context
+host_touch_pointer_read

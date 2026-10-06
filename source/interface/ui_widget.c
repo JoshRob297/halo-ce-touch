@@ -5879,15 +5879,39 @@ static void ui_widgets_process_mouse(
 	struct ui_mouse_target *target;
 	short controller_index = 0;
 
-	if (!halo_ui_pointer_update(ui_mouse_menus_active(), &pointer) ||
-		virtual_keyboard_active())
+#ifdef HALO_ANDROID
+	host_touch_ui_context(ui_mouse_menus_active() || we_are_at_the_main_menu ||
+		progress_bar_is_active() || widget_globals.initialization_thread != NULL);
+#endif
+	if (!halo_ui_pointer_update(ui_mouse_menus_active(), &pointer))
 	{
 		ui_mouse_press_count = 0;
 		ui_mouse_hover_pending = FALSE;
 		ui_mouse_click_pending = FALSE;
 	}
+	else if (virtual_keyboard_active())
+	{
+#ifdef HALO_ANDROID
+		virtual_keyboard_touch(pointer.click_x, pointer.click_y, pointer.left_clicks, pointer.right_clicks);
+#endif
+		ui_mouse_press_count = 0;
+		ui_mouse_hover_pending = ui_mouse_click_pending = FALSE;
+	}
 	else
 	{
+#ifdef HALO_ANDROID
+		/* Screen-edge taps move the focused menu list without activating it */
+		if (pointer.left_clicks && pointer.side_step &&
+			!ui_mouse_target_at(pointer.click_x, pointer.click_y)) {
+			struct widget_instance *list = ui_mouse_wheel_widget(ui_mouse_menu());
+			if (list) {
+				short back, forward;
+				ui_mouse_list_directions(list, &back, &forward);
+				ui_mouse_press(pointer.side_step < 0 ? back : forward);
+				pointer.left_clicks = 0;
+			}
+		}
+#endif
 		if (pointer.moved)
 		{
 			ui_mouse_hover_pending = TRUE;

@@ -17,6 +17,8 @@ static int frame_count, frame_fps;
 static struct timespec frame_time;
 static int camera_pending;
 static float field_of_view = 70.0f;
+static int ui_menus = 1;
+static float ui_point[6]; /* normalized x/y, click, back, scroll, scrollbar */
 
 void host_touch_rumble(unsigned int low, unsigned int high)
 {
@@ -207,4 +209,51 @@ void host_touch_read(int32_t *state)
 	pthread_mutex_lock(&touch_lock);
 	memcpy(state, touch_state, sizeof(touch_state));
 	pthread_mutex_unlock(&touch_lock);
+}
+
+void host_touch_ui_context(int menus)
+{
+    pthread_mutex_lock(&touch_lock);
+    if (ui_menus != menus) {
+        camera_pending = 0;
+        memset(touch_state, 0, sizeof(touch_state));
+        memset(look_delta, 0, sizeof(look_delta));
+        memset(ui_point, 0, sizeof(ui_point));
+    }
+    ui_menus = menus;
+    pthread_mutex_unlock(&touch_lock);
+}
+
+void host_touch_pointer_read(float *point)
+{
+    pthread_mutex_lock(&touch_lock);
+    memcpy(point, ui_point, sizeof(ui_point));
+    ui_point[2] = ui_point[3] = ui_point[4] = ui_point[5] = 0;
+    pthread_mutex_unlock(&touch_lock);
+}
+
+JNIEXPORT jboolean JNICALL Java_com_halo_decomp_TouchControls_nativeMenusActive(JNIEnv *env, jclass cls)
+{
+    jboolean active;
+    (void)env; (void)cls;
+    pthread_mutex_lock(&touch_lock);
+    active = ui_menus != 0 ? JNI_TRUE : JNI_FALSE;
+    pthread_mutex_unlock(&touch_lock);
+    return active;
+}
+
+JNIEXPORT void JNICALL Java_com_halo_decomp_TouchControls_nativeMenuPointer(
+    JNIEnv *env, jclass cls, jfloat x, jfloat y, jboolean click, jboolean back,
+    jfloat scroll, jboolean scrollbar)
+{
+    (void)env; (void)cls;
+    pthread_mutex_lock(&touch_lock);
+    if (ui_menus) {
+        ui_point[0] = x; ui_point[1] = y;
+        if (click) ui_point[2] = 1;
+        if (back) ui_point[3] = 1;
+        ui_point[4] += scroll;
+        if (scrollbar) ui_point[5] = 1;
+    }
+    pthread_mutex_unlock(&touch_lock);
 }

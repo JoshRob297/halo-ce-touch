@@ -84,10 +84,16 @@ public final class TouchControls extends View implements SensorEventListener {
     private static native int nativeFps();
     private static native void nativeCameraMode();
     private static native void nativeFieldOfView(float degrees);
+    private static native boolean nativeMenusActive();
+    private static native void nativeMenuPointer(float x, float y, boolean click, boolean back, float scroll, boolean scrollbar);
+    private boolean menusActive = true, menuOverlayVisible;
+    private int menuPointer = -1;
+    private float menuStartX, menuStartY, menuLastY;
+    private boolean menuScrolled;
     private final Runnable rumblePoll = new Runnable() {
         public void run() {
             if (!deviceInputActive) return;
-            int amplitude = layout.rumbleEnabled && !editing && !optionsOpen ? nativeRumble() : 0;
+            int amplitude = layout.rumbleEnabled && !editing && !optionsOpen && !menusActive ? nativeRumble() : 0;
             if (vibrator != null && vibrator.hasVibrator()) {
                 if (amplitude == 0) cancelRumble();
                 else if (amplitude != lastAmplitude || SystemClock.uptimeMillis()-lastVibration >= 70) {
@@ -110,6 +116,18 @@ public final class TouchControls extends View implements SensorEventListener {
                 if (fps != currentFps) { currentFps = fps; invalidate(); }
             }
             postDelayed(this, 250);
+        }
+    };
+    private final Runnable menuPoll = new Runnable() {
+        public void run() {
+            if (!deviceInputActive) return;
+            boolean active = nativeMenusActive();
+            if (active != menusActive) {
+                menusActive = active;
+                menuOverlayVisible = false;
+                reset(); cancelRumble(); updateSensors();
+            }
+            postDelayed(this, 16);
         }
     };
     private int lookPointer = -1;
@@ -198,7 +216,7 @@ public final class TouchControls extends View implements SensorEventListener {
     }
 
     public void reset() {
-        dragPointer = dragControl = -1;
+        dragPointer = dragControl = menuPointer = -1;
         owners.clear();
         buttonTouches.clear();
         lookPointer = -1;
@@ -210,7 +228,7 @@ public final class TouchControls extends View implements SensorEventListener {
     }
 
     private void publish() {
-        if (editing || optionsOpen) {
+        if (editing || optionsOpen || (menusActive && !menuOverlayVisible)) {
             nativeState(0, 0, 0, 0, 0, 0, 0);
             return;
         }
@@ -240,6 +258,9 @@ public final class TouchControls extends View implements SensorEventListener {
         if (editing && inside(x, y, optionsX()-78, toolbarY(), 34)) return IMPORT;
         if (inside(x, y, logicalWidth/2, toolbarY(), 28)) return TOGGLE;
         if (!visible) return Integer.MIN_VALUE;
+        // In a menu the overlay is hidden: leave the game's own menus to the
+        // direct-touch path (menuTouch) instead of pressing hidden buttons.
+        if (menusActive && !menuOverlayVisible && !editing) return Integer.MIN_VALUE;
         for (int i = 0; i < layout.size(); i++) {
             if (!layout.shown(i) || layout.type(i) == LEFT) continue;
             Button b = buttons[layout.type(i)];
@@ -260,11 +281,54 @@ public final class TouchControls extends View implements SensorEventListener {
         axes[axis+1] = Math.round(dy * 32767);
     }
 
+    private boolean menuTouch(MotionEvent event, int action, int index, int id) {
+        if (action == MotionEvent.ACTION_DOWN) {
+            menuPointer = id;
+            menuStartX = event.getX(index); menuStartY = menuLastY = event.getY(index);
+            menuScrolled = false;
+        } else if (action == MotionEvent.ACTION_MOVE && menuPointer >= 0) {
+            int p = event.findPointerIndex(menuPointer);
+            if (p >= 0) {
+                float px = event.getX(p), py = event.getY(p);
+                boolean scrollbar = menuStartX/getWidth() > 0.72f;
+                if (scrollbar || Math.abs(py-menuStartY) > 12*scale) {
+                    menuScrolled = true;
+                    nativeMenuPointer(px/getWidth(), py/getHeight(), false, false,
+                        (menuLastY-py)/getHeight(), scrollbar);
+                }
+                menuLastY = py;
+            }
+        } else if ((action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_POINTER_UP) && id == menuPointer) {
+            if (!menuScrolled) {
+                nativeMenuPointer(event.getX(index)/getWidth(), event.getY(index)/getHeight(), true, false, 0, false);
+                performClick();
+            }
+            menuPointer = -1;
+        } else if (action == MotionEvent.ACTION_CANCEL) { reset(); }
+        return true;
+    }
+
     @Override public boolean onTouchEvent(MotionEvent event) {
         int action = event.getActionMasked(), index = event.getActionIndex();
         int id = event.getPointerId(index);
         float x = (event.getX(index)-offsetX)/scale, y = (event.getY(index)-offsetY)/scale;
         if (editing) return editTouch(event, action, index, id, x, y);
+        if (action == MotionEvent.ACTION_DOWN || action == MotionEvent.ACTION_POINTER_DOWN) {
+            if (hit(x, y) == TOGGLE) {
+                reset();
+                if (menusActive) menuOverlayVisible = !menuOverlayVisible;
+                else visible = !visible;
+                owners.put(id, TOGGLE);
+                performClick(); invalidate(); return true;
+            }
+        }
+        if (owners.get(id, Integer.MIN_VALUE) == TOGGLE) {
+            if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_POINTER_UP)
+                owners.delete(id);
+            return true;
+        }
+        if (menusActive && (menuPointer >= 0 || owners.size() == 0 && hit(x, y) == Integer.MIN_VALUE))
+            return menuTouch(event, action, index, id);
         if (action == MotionEvent.ACTION_DOWN || action == MotionEvent.ACTION_POINTER_DOWN) {
             int control = hit(x, y);
             if (control == EDIT) {
@@ -272,11 +336,11 @@ public final class TouchControls extends View implements SensorEventListener {
             } else if (control == TOGGLE) {
                 reset(); visible = !visible; performClick();
             } else if (control != Integer.MIN_VALUE) {
+                if (!menusActive && control >= 0 && layout.type(control) == TouchLayout.CAMERA) nativeCameraMode();
                 owners.put(id, control);
-                if (control >= 0 && layout.type(control) == TouchLayout.CAMERA) nativeCameraMode();
                 if (control >= 0 && layout.type(control) == LEFT) moveStick(control, x, y);
                 else buttonTouches.put(id, new float[]{event.getX(index), event.getY(index)});
-            } else if (visible && lookPointer < 0) {
+            } else if (!menusActive && visible && lookPointer < 0) {
                 lookPointer = id; lookX = event.getX(index); lookY = event.getY(index);
                 owners.put(id, LOOK);
             }
@@ -403,16 +467,16 @@ public final class TouchControls extends View implements SensorEventListener {
         if (deviceInputActive) return;
         deviceInputActive = true;
         nativeFieldOfView(layout.fieldOfView);
-        gyroAim.reset(); updateSensors(); post(rumblePoll); post(fpsPoll);
+        gyroAim.reset(); updateSensors(); post(rumblePoll); post(fpsPoll); post(menuPoll);
     }
 
     public void stopDeviceInput() {
-        deviceInputActive = false; removeCallbacks(rumblePoll); removeCallbacks(fpsPoll);
+        deviceInputActive = false; removeCallbacks(rumblePoll); removeCallbacks(fpsPoll); removeCallbacks(menuPoll);
         updateSensors(); cancelRumble(); reset();
     }
 
     private void updateSensors() {
-        boolean needed = deviceInputActive && layout.gyroscopeEnabled && gyroscope != null;
+        boolean needed = deviceInputActive && !menusActive && !editing && !optionsOpen && layout.gyroscopeEnabled && gyroscope != null;
         if (needed && !gyroRegistered) {
             gyroAim.reset();
             gyroRegistered = sensors.registerListener(this, gyroscope, SensorManager.SENSOR_DELAY_GAME);
@@ -429,7 +493,7 @@ public final class TouchControls extends View implements SensorEventListener {
     }
 
     @Override public void onSensorChanged(SensorEvent event) {
-        if (!deviceInputActive || !layout.gyroscopeEnabled || editing || optionsOpen) {
+        if (!deviceInputActive || !layout.gyroscopeEnabled || editing || optionsOpen || menusActive) {
             gyroAim.reset(); return;
         }
         int rotation = ((WindowManager)getContext().getSystemService(Context.WINDOW_SERVICE))
@@ -725,7 +789,7 @@ public final class TouchControls extends View implements SensorEventListener {
     }
 
     @Override protected void onDraw(Canvas canvas) {
-        if (layout.fpsCounter && !editing && !optionsOpen) {
+        if (layout.fpsCounter && !editing && !optionsOpen && !menusActive) {
             paint.setStyle(Paint.Style.FILL); paint.setColor(Color.WHITE);
             paint.setTextAlign(Paint.Align.LEFT); paint.setTextSize(18*scale);
             canvas.drawText("FPS: "+currentFps, insetLeft+12*scale, insetTop+24*scale, paint);
@@ -733,9 +797,9 @@ public final class TouchControls extends View implements SensorEventListener {
         canvas.save(); canvas.translate(offsetX, offsetY); canvas.scale(scale, scale);
         if (!editing) {
             circle(canvas, logicalWidth/2, toolbarY(), 28, "", false);
-            TouchIcons.draw(canvas, paint, 19, logicalWidth/2, toolbarY(), 20, visible);
+            TouchIcons.draw(canvas, paint, 19, logicalWidth/2, toolbarY(), 20, menusActive ? menuOverlayVisible : visible);
         }
-        if (visible) {
+        if (editing || (menusActive ? menuOverlayVisible : visible)) {
             if (layout.shown(LEFT)) stick(canvas, 0, layout.x(LEFT), layout.y(LEFT), "Move");
             for (int i = 0; i < layout.size(); i++) {
                 if (!layout.shown(i) || layout.type(i) == LEFT) continue;

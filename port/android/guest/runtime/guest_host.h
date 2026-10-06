@@ -82,6 +82,8 @@ void host_touch_cheat_result(int id, int status);
 void host_touch_cheat_sync(int id, int active);
 int host_touch_camera_read(void);
 float host_touch_field_of_view(void);
+void host_touch_ui_context(int menus);
+void host_touch_pointer_read(float *point);
 unsigned int host_sdl_open_gamepad(unsigned int id);
 unsigned int host_sdl_gamepad_from_id(unsigned int id);
 int host_sdl_gamepad_axis(unsigned int gamepad, int axis);

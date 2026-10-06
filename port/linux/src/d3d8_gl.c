@@ -1154,11 +1154,36 @@ HRESULT WINAPI Direct3D_CreateDevice(UINT adapter, D3DDEVTYPE device_type, void 
 /* ---------- the menus' pointer */
 
 #ifdef HALO_ANDROID
+extern void host_touch_pointer_read(float *point);
 int halo_ui_pointer_update(int menus_active, struct halo_ui_pointer *pointer)
 {
-	(void)pointer;
-	platform_menus_set_active(menus_active != 0);
-	return 0;
+    float point[6];
+    struct render_target_entry *back_buffer = render_target_get(&device.back_buffer);
+    int pixel_width, pixel_height, width, height, left, top;
+    float sx, sy;
+    platform_menus_set_active(menus_active != 0);
+    host_touch_pointer_read(point);
+    if (!menus_active || !back_buffer) return 0;
+    platform_video_drawable_size(&pixel_width, &pixel_height);
+    width = pixel_width;
+    height = (int)((long)width * back_buffer->target.gl_height / back_buffer->target.gl_width);
+    if (height > pixel_height) {
+        height = pixel_height;
+        width = (int)((long)height * back_buffer->target.gl_width / back_buffer->target.gl_height);
+    }
+    if (width <= 0 || height <= 0) return 0;
+    left = (pixel_width-width)/2; top = (pixel_height-height)/2;
+    sx = (point[0]*pixel_width-left)*back_buffer->target.width/width;
+    sy = (point[1]*pixel_height-top)*back_buffer->target.height/height;
+    memset(pointer, 0, sizeof(*pointer));
+    pointer->x = pointer->click_x = (short)(sx-(halo_screen_width()-640)/2);
+    pointer->y = pointer->click_y = (short)sy;
+    pointer->left_clicks = point[2] != 0;
+    pointer->right_clicks = point[3] != 0;
+    pointer->scroll_pixels = (short)(point[4]*back_buffer->target.height);
+    pointer->scroll_drag = point[5] != 0;
+    pointer->side_step = point[0] < 0.18f ? -1 : point[0] > 0.82f ? 1 : 0;
+    return 1;
 }
 #else
 /* a point in the window, as SDL reports it, in the menus' coordinates: the

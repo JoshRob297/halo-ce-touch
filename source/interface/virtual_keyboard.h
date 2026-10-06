@@ -43,4 +43,8 @@ void virtual_keyboard_render(
 
 /* ---------- public code */
 
+#ifdef HALO_ANDROID
+void virtual_keyboard_touch(short x, short y, boolean click, boolean back);
+#endif
+
 #endif // __VIRTUAL_KEYBOARD_H
