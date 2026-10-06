@@ -228,7 +228,7 @@ struct program_entry
 	unsigned long constant_count;
 	BOOL constants_consecutive;
 	/* constants_serial at the program's last constant upload (constants_store) */
-	unsigned long constants_serial;
+	unsigned long long constants_serial;
 	/* draw_uniforms_serial when the uniforms below were brought up to date */
 	unsigned long uniforms_serial;
 	/* what the program's other uniforms hold (all ones: unknown) */
@@ -1013,9 +1013,16 @@ void WINAPI Direct3D_SetPushBufferSize(DWORD push_buffer_size, DWORD segment_cou
 
 /* each vertex constant register's serial is the value constants_serial took
 when the register last changed; a program's registers are current up to
-the serial it recorded when it last uploaded them */
-static unsigned long constant_serials[XGPU_VERTEX_CONSTANT_COUNT];
-static unsigned long constants_serial;
+the serial it recorded when it last uploaded them.
+
+The serials are 64-bit: 32 bits wrap within minutes at a high frame rate
+(a skinned model changes up to 132 registers a draw), and after a wrap the
+two upload paths below find nothing changed for every program recorded
+before it. That program's next draw then keeps the registers it uploaded
+last, often another object's node matrices, and its vertices fly across the
+screen for a frame. */
+static unsigned long long constant_serials[XGPU_VERTEX_CONSTANT_COUNT];
+static unsigned long long constants_serial;
 /* the register each of the latest serials changed, so a program that is
 only a little behind finds its changed registers without a full scan */
 #define CONSTANT_LOG_SIZE 1024
@@ -1033,6 +1040,18 @@ static void constants_store(unsigned long first, const void *data, unsigned long
 			memcpy(device.constants[first + index], values[index], sizeof(device.constants[0]));
 			constant_serials[first + index] = ++constants_serial;
 			constant_log[constants_serial % CONSTANT_LOG_SIZE] = (unsigned char)(first + index);
+		}
+	}
+
+	/* one-off, for a build under test: the 32-bit counter this used to be
+	wrapped here, and every program then drew a frame with the registers it
+	uploaded last, which was another object's node matrices */
+	{
+		static BOOL reported;
+		if (!reported && constants_serial > 0xffffffffull)
+		{
+			reported = TRUE;
+			platform_log("vertex constant serial passed 32 bits, where the old counter wrapped");
 		}
 	}
 }
@@ -2629,7 +2648,7 @@ static struct program_entry *prepare_draw(BOOL immediate)
 
 		if (constants_serial - entry->constants_serial <= XGPU_VERTEX_CONSTANT_COUNT)
 		{
-			unsigned long serial;
+			unsigned long long serial;
 
 			for (serial = entry->constants_serial + 1; serial <= constants_serial; serial++)
 			{
