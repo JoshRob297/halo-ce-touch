@@ -30,3 +30,6 @@ original/
 
 # CI build outputs (tools/ci_build.py)
 dist/
+
+# Decodificador de Bink: se compila con port/android/binkplayer/build.sh
+libbinkplayer.so
