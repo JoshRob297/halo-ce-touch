@@ -9,7 +9,10 @@ Automated system link sessions for testing the netcode without the menus
   (slayer by default; game_engine_get_variant_by_name), as the pregame
   screen's fast setup does, and starts it debug.network_test_start seconds
   later; with more variants, once a game is over (debug.network_test_score
-  makes it short) the next, as the host's button on the scores does;
+  makes it short) the next, as the host's button on the scores does. A map
+  with a path is that level (custom_maps\a30, a Custom Edition map's), and
+  the variant "coop" makes the game network co-op on it, at normal
+  difficulty, as the Map screen does for a campaign level;
 - "join" searches for games and joins the first it finds, as picking it in
   the system link list does.
 
@@ -1055,67 +1058,55 @@ void network_test_update(
 			if (!network_test.map_set && network_test.setup_seconds >= 1.0f && global_network_game_server_get())
 			{
 				char path[128];
-
+				char variant_name[64];
 				struct game_variant variant;
 
-				snprintf(path, sizeof(path), "levels\\test\\%s\\%s", network_test.map_name, network_test.map_name);
-				network_game_server_change_map_name(global_network_game_server_get(), path);
-				/* port: a host that names maps plays on its own too, so a server
-				the list is given starts the game it advertises with nobody on it
-				(the countdown needs the players a game asks for, and the Xbox
-				game's own is two) */
-				network_game_server_port_set_minimum_players(global_network_game_server_get(), 1);
-				/* the variant, as picking the game settings does */
+				/* (a level of its own path, else a multiplayer map's name) */
+				if (strchr(network_test.map_name, '\\'))
+					snprintf(path, sizeof(path), "%s", network_test.map_name);
+				else
+					snprintf(path, sizeof(path), "levels\\test\\%s\\%s", network_test.map_name, network_test.map_name);
+				network_test_variant(network_test.variant_index, variant_name, sizeof(variant_name));
+				if (!strcmp(variant_name, "coop"))
 				{
-					char variant_name[64];
+					/* (the Map screen's co-op: menu_functions.c) */
+					extern boolean ui_widget_port_cooperative_level_choose(char const *map_name, short difficulty);
 
-					network_test_variant(network_test.variant_index, variant_name, sizeof(variant_name));
+					if (!ui_widget_port_cooperative_level_choose(path, _game_difficulty_level_normal))
+						platform_log("network test: %s is not a campaign level, for co-op", path);
+					platform_log("network test: game %d, co-op", network_test.variant_index + 1);
+				}
+				else
+				{
+					network_game_server_change_map_name(global_network_game_server_get(), path);
+					/* the variant, as picking the game settings does */
 					variant = *game_engine_get_variant_by_name(&variant, variant_name);
-					/* port: a variant with teams asks for a player on each one
-					(server_needs_more_teams), which a host nobody is on cannot give:
-					its countdown would be held for ever and the list would stand still.
-					The map's first variant without teams plays instead (the list's own
-					pick comes back with players) */
-					if (variant.universal_variant.teams &&
-						network_game_server_port_player_count(global_network_game_server_get()) < 2)
-					{
-						long index;
-						char candidate[64];
-
-						for (index = 0; network_test_variant(index, candidate, sizeof(candidate)); index++)
-						{
-							struct game_variant other =
-								*game_engine_get_variant_by_name(&variant, candidate);
-
-							if (!other.universal_variant.teams)
-							{
-								variant = other;
-								snprintf(variant_name, sizeof(variant_name), "%s", candidate);
-								break;
-							}
-						}
-					}
+					/* port: a host that names maps plays on its own too, so a server
+					the list is given starts the game it advertises with nobody on it
+					(the countdown needs the players a game asks for, and the Xbox
+					game's own is two) */
+					network_game_server_port_set_minimum_players(global_network_game_server_get(), 1);
 					platform_log("network test: game %d, %s on %s", network_test.variant_index + 1,
 						variant_name, network_test.map_name);
-				}
-				/* debug.network_test_score: a short game, to test the next */
-				if (network_test.score_to_win > 0)
-					variant.universal_variant.score_to_win = network_test.score_to_win;
-				player_ui_set_game_variant(&variant);
-				/* debug.network_test_time: the gametype's options carry the time
-				limit and a built-in variant's own is none (0), so a game whose
-				score nobody reaches never ends and the list stands still. The
-				call above reset the options to the variant's, so they are given
-				here, before the server reads them for its clients. */
-				{
-					struct game_variant_options options;
+					/* debug.network_test_score: a short game, to test the next */
+					if (network_test.score_to_win > 0)
+						variant.universal_variant.score_to_win = network_test.score_to_win;
+					player_ui_set_game_variant(&variant);
+					/* debug.network_test_time: the gametype's options carry the time
+					limit and a built-in variant's own is none (0), so a game whose
+					score nobody reaches never ends and the list stands still. The
+					call above reset the options to the variant's, so they are given
+					here, before the server reads them for its clients. */
+					{
+						struct game_variant_options options;
 
-					game_variant_options_default(&variant, &options);
-					if (network_test.time_limit > 0)
-						options.time_limit = (short)network_test.time_limit;
-					player_ui_set_game_variant_options(&options);
+						game_variant_options_default(&variant, &options);
+						if (network_test.time_limit > 0)
+							options.time_limit = (short)network_test.time_limit;
+						player_ui_set_game_variant_options(&options);
+					}
+					network_game_server_change_game_variant(global_network_game_server_get(), &variant);
 				}
-				network_game_server_change_game_variant(global_network_game_server_get(), &variant);
 				network_test.map_set = TRUE;
 				network_test_set_variant = variant;
 				network_test_set_variant_valid = TRUE;
