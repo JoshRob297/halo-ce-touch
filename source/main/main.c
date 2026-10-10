@@ -3432,9 +3432,6 @@ void main_loop(
 		shell_idle();
 		event_manager_update();
 		telnet_console_process();
-#ifdef HALO_ANDROID
-		android_touch_cheats_update();
-#endif
 
 		if (!shell_application_is_paused())
 		{

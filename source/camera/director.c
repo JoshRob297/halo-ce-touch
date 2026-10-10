@@ -923,16 +923,6 @@ static boolean director_update_controls(
 		}
 	}
 
-#ifdef HALO_ANDROID
-	/* the overlay's camera button cycles the camera mode, as the gamepad's
-	   black button does */
-	if (local_player_index == 0)
-	{
-		extern int host_touch_camera_read(void);
-		if (host_touch_camera_read()) switch_camera = TRUE;
-	}
-#endif
-
 	return switch_camera;
 }
 

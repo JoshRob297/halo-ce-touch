@@ -79,13 +79,6 @@ int host_sdl_get_gamepads(unsigned int *ids, int capacity);
 void host_touch_read(int *state);
 void host_touch_rumble(unsigned int low, unsigned int high);
 void host_touch_look_read(float *delta);
-unsigned int host_touch_cheats_read(int *commands);
-void host_touch_cheat_result(int id, int status);
-void host_touch_cheat_sync(int id, int active);
-int host_touch_camera_read(void);
-float host_touch_field_of_view(void);
-void host_touch_ui_context(int menus);
-void host_touch_pointer_read(float *point);
 unsigned int host_sdl_open_gamepad(unsigned int id);
 unsigned int host_sdl_gamepad_from_id(unsigned int id);
 int host_sdl_gamepad_axis(unsigned int gamepad, int axis);
@@ -132,12 +125,9 @@ void host_gesture_insets(int *insets);
 
 /* the overlay's controller: the SDL axes (left x, y, right x, y, left
 trigger, right trigger) and the SDL button bits, into state[7] */
-void host_touch_read(int *state);
 /* the overlay's view swipe, then its gyroscope turn, since the last read,
 into delta[4] */
-void host_touch_look_read(float *delta);
 /* port 0's motors, for the phone's vibration */
-void host_touch_rumble(unsigned int low, unsigned int high);
 /* tells the overlay when to show: touch_input.c's _touch_scene_* */
 void host_touch_scene(int scene);
 /* the game control on each of the 16 controller buttons (touch_game.c),
