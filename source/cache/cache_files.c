@@ -598,6 +598,13 @@ void scenario_tags_unload(
 		hud_hires_tags_unloaded();
 	}
 	sound_cache_close();
+	/* port: the sounds of tag files go, after the sound cache that held them
+	(port/linux/game/loose_sounds.c) */
+	{
+		extern void loose_sounds_tags_unloaded(void);
+
+		loose_sounds_tags_unloaded();
+	}
 	texture_cache_close();
 	/* port: the menus' tags go, and the map's own table comes back
 	(port/linux/game/menu_tags.c): after the texture cache, which writes to
@@ -862,7 +869,8 @@ boolean cache_file_header_verify(
 		header->footer_signature != CACHE_FILE_FOOTER_SIGNATURE ||
 		header->file_length < 0 ||
 		header->file_length > 0x11600000 ||
-		csstrlen(header->name) > 31)
+		/* port: its name ends within its field (csstrlen read on past it) */
+		!memchr(header->name, 0, sizeof(header->name)))
 	{
 		if (fatal)
 		{
@@ -1187,6 +1195,12 @@ long scenario_tags_load(
 
 				menu_tags_loaded(cache_file_globals.header.name);
 			}
+			/* (and the sounds of tag files, as below) */
+			{
+				extern void loose_sounds_tags_loaded(void);
+
+				loose_sounds_tags_loaded();
+			}
 			result = cache_file_globals.tag_header->scenario_tag_index;
 		}
 
@@ -1288,6 +1302,13 @@ long scenario_tags_load(
 				extern void hud_hires_tags_loaded(void);
 
 				hud_hires_tags_loaded();
+			}
+			/* port: the sounds of tag files played over the map's
+			(audio.loose_sounds: port/linux/game/loose_sounds.c) */
+			{
+				extern void loose_sounds_tags_loaded(void);
+
+				loose_sounds_tags_loaded();
 			}
 			result = cache_file_globals.tag_header->scenario_tag_index;
 		}
