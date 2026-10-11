@@ -161,6 +161,7 @@ def configuration_defines(sln: Any) -> List[str]:
         defines.append("-DHALO_RELEASE")
     if getattr(sln, "port_profile", False):
         defines.append("-DHALO_PROFILE")
+    defines.extend(ffmpeg_flags()[0])
     return defines
 
 
@@ -215,6 +216,24 @@ PROFILE_USE_FLAGS = [
 # voice chat's codec (port/third_party/opus; network_voice.c): the
 # floating-point library in plain C, its files as sources.txt lists them
 OPUS_DIR = Path("port/third_party/opus")
+# FFmpeg (LGPL) decodes the movies, which the port has no decoder for
+# (bink_ffmpeg.c implements the SDK's own entry points behind it). It is taken
+# from the system when it is there; without it the tree keeps bink_null.c and
+# the game skips the movies, exactly as it did before. The portable build's own
+# system root carries no FFmpeg, so its absence is the normal case there.
+FFMPEG_LIBS = ["libavformat", "libavcodec", "libswscale", "libswresample", "libavutil"]
+
+
+def ffmpeg_flags() -> Tuple[List[str], List[str]]:
+    """the compiler flags and libraries of the system's FFmpeg, or nothing"""
+    try:
+        cflags = subprocess.check_output(["pkg-config", "--cflags", *FFMPEG_LIBS], text=True).split()
+        libs = subprocess.check_output(["pkg-config", "--libs", *FFMPEG_LIBS], text=True).split()
+    except (OSError, subprocess.CalledProcessError):
+        return [], []
+    return ["-DHALO_BINK_FFMPEG", *cflags], libs
+
+
 OPUS_DEFINES = ("-DOPUS_BUILD", "-DVAR_ARRAYS", "-DHAVE_LRINTF", "-DHAVE_LRINT")
 
 
@@ -509,6 +528,7 @@ def generate_linux_build(n: Writer, sln: Any) -> None:
     port_include = PORT_DIR / "include"
     sdk_flags = f"-idirafter {XDK_INCLUDE}"
     libs = " ".join(f"-l{lib}" for lib in config.get("libraries", []))
+    libs = " ".join([libs, *ffmpeg_flags()[1]]).strip()
 
     def emit(obj_dir: Path, output: Path, extra_cflags: List[str], extra_ldflags: List[str],
              implicit_inputs: List[Path], validator: Optional[Path] = None) -> None:
