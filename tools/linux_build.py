@@ -152,6 +152,25 @@ def updater_defines(release: bool) -> str:
     flavor = "release" if release else "debug"
     return f'-DHALO_BUILD_NUMBER={number} -DHALO_BUILD_FLAVOR=\\"{flavor}\\"'
 
+def configuration_defines(sln: Any) -> List[str]:
+    """what configure.py's options define for every unit of a native build:
+    --release (no assertions), --profile (the profiling build's recording,
+    port/linux/src/profile_trace.c)"""
+    defines = []
+    if getattr(sln, "port_release", False):
+        defines.append("-DHALO_RELEASE")
+    if getattr(sln, "port_profile", False):
+        defines.append("-DHALO_PROFILE")
+    return defines
+
+
+def check_profile_options(profile: bool, pgo: str) -> None:
+    """A profiling build is optimised with the committed profiles or none:
+    trained, a profile would record the profiling code's own paths."""
+    if profile and pgo == "train":
+        raise ValueError("--profile cannot be used with --pgo=train: train profiles with a normal build")
+
+
 PLATFORM_FLAGS = [
     "-std=gnu11",
     "-D_GNU_SOURCE",
@@ -485,8 +504,8 @@ def generate_linux_build(n: Writer, sln: Any) -> None:
     # (a debug build checks its stack frames, and stops at the first one
     # overrun, as it stops at the first failed assertion; a release build
     # does not, so that an overrun nobody has met cannot end a game)
-    abi = " ".join(LINUX_ABI_FLAGS + target + (["-DHALO_RELEASE"] if getattr(sln, "port_release", False)
-                                               else ["-fstack-protector-strong"]))
+    abi = " ".join(LINUX_ABI_FLAGS + target + configuration_defines(sln)
+                   + ([] if getattr(sln, "port_release", False) else ["-fstack-protector-strong"]))
     port_include = PORT_DIR / "include"
     sdk_flags = f"-idirafter {XDK_INCLUDE}"
     libs = " ".join(f"-l{lib}" for lib in config.get("libraries", []))
@@ -558,7 +577,7 @@ def generate_linux_build(n: Writer, sln: Any) -> None:
         posix_cflags = " ".join(POSIX_FLAGS + target + [f"-I{platform_dir}"])
         mbedtls_include = f"-I{MBEDTLS_DIR / 'include'}"
         for source in sorted(platform_dir.glob("*.c")):
-            if source.name == "posix_update.c":
+            if source.name in ("posix_update.c", "posix_dtls.c"):
                 add_object(source, f"{posix_cflags} {mbedtls_include}", posix=True)
             elif source.name == "posix_upnp.c":
                 add_object(source, f"{posix_cflags} -I{MINIUPNPC_DIR / 'include'} -DMINIUPNP_STATICLIB", posix=True)
@@ -570,8 +589,9 @@ def generate_linux_build(n: Writer, sln: Any) -> None:
                 add_object(source, platform_cflags)
         for source in embedded_assets:
             add_object(source, platform_cflags)
-        # the self-updater's TLS (port/third_party/mbedtls), with the host's
-        # ABI as the posix_*.c that use it (and no loop turned into glibc's
+        # the self-updater's TLS and internet play's DTLS with browsers
+        # (port/third_party/mbedtls), with the host's ABI as the posix_*.c
+        # that use it (and no loop turned into glibc's
         # wcslen, which linux_link_check.py rejects: the game's wchar_t is
         # 16-bit)
         for source in sorted((MBEDTLS_DIR / "library").glob("*.c")):

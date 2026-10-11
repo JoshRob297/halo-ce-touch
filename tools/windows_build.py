@@ -19,9 +19,9 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from .linux_build import (LINUX_PROFILE, MINIUPNPC_DIR, OPTIMISATION, WINDOWS_PROFILE, XDK_INCLUDE, lto_mode,
-                          march_flag, miniupnpc_sources, pgo_mode, compile_launcher, game_defines_and_includes,
-                          game_sources, musl_math_cflags, musl_math_sources, opus_cflags, opus_sources, pgo_profile,
-                          profile_use_flags, xdk_headers)
+                          march_flag, miniupnpc_sources, pgo_mode, compile_launcher, configuration_defines,
+                          game_defines_and_includes, game_sources, musl_math_cflags, musl_math_sources, opus_cflags,
+                          opus_sources, pgo_profile, profile_use_flags, xdk_headers)
 from .embed_assets import hud_assets_build, hud_configure_inputs
 from .ninja_syntax import Writer
 
@@ -54,6 +54,8 @@ EXPAT_DIR = Path("port/third_party/expat")
 EXPAT_SOURCES = ("xmlparse.c", "xmlrole.c", "xmltok.c", "random_rand_s.c")
 KCP_DIR = Path("port/third_party/kcp")
 MONOCYPHER_DIR = Path("port/third_party/monocypher")
+# internet play's DTLS with browsers (port/linux/src/posix_dtls.c)
+MBEDTLS_DIR = Path("port/third_party/mbedtls")
 # the port's zlib (port/third_party/zlib/zlib_prefixed.h), which inflates
 # the maps, the menus' and the HUD's PNGs and the updates
 ZLIB_DIR = Path("port/third_party/zlib")
@@ -324,8 +326,8 @@ def generate_windows_build(n: Writer, sln: Any) -> None:
     # (a debug build checks its stack frames (/GS), and stops at the first
     # one overrun, as at the first failed assertion; a release build does
     # not, so that an overrun nobody has met cannot end a game)
-    abi = " ".join(WINDOWS_ABI_FLAGS + [march_flag(sln)] + (["-DHALO_RELEASE"] if getattr(sln, "port_release", False)
-                                                            else ["-fstack-protector-strong"]))
+    abi = " ".join(WINDOWS_ABI_FLAGS + [march_flag(sln)] + configuration_defines(sln)
+                   + ([] if getattr(sln, "port_release", False) else ["-fstack-protector-strong"]))
     sdl_include = SDL_DIR / "include"
     libs = " ".join(
         [_quote(SDL_DIR / "lib" / "x86" / "SDL3.lib")]
@@ -423,10 +425,14 @@ def generate_windows_build(n: Writer, sln: Any) -> None:
             f"-I{_quote(sdl_include)}",
         ])
         replaced = set(config.get("replaced_platform_sources", []))
+        mbedtls_include = f"-I{MBEDTLS_DIR / 'include'}"
         for source in sorted(linux_platform.glob("*.c")):
             if source.name in replaced:
                 continue
-            if source.name == "updater.c":
+            if source.name == "posix_dtls.c":
+                # (Mbed TLS sees the Windows SDK, as the win32_*.c do)
+                add_object(source, f"{win32_cflags} {mbedtls_include}")
+            elif source.name == "updater.c":
                 add_object(source, f"{platform_cflags} {updater_defines(getattr(sln, 'port_release', False))}")
             else:
                 add_object(source, platform_cflags)
@@ -455,6 +461,11 @@ def generate_windows_build(n: Writer, sln: Any) -> None:
             add_object(EXPAT_DIR / name, " ".join([abi, "-std=gnu11", f"-I{EXPAT_DIR}", "-w"]))
         # internet play's reliable streams (port/third_party/kcp; p2p.c)
         add_object(KCP_DIR / "ikcp.c", " ".join([abi, "-std=gnu11", "-w"]))
+        # internet play's DTLS with browsers (port/third_party/mbedtls;
+        # posix_dtls.c), on the Windows SDK (its entropy is BCryptGenRandom)
+        for source in sorted((MBEDTLS_DIR / "library").glob("*.c")):
+            add_object(source, " ".join([abi, *WIN32_FLAGS, mbedtls_include, f"-I{MBEDTLS_DIR / 'library'}",
+                                         "-D_CRT_SECURE_NO_WARNINGS", "-w"]))
         # voice chat's codec (port/third_party/opus)
         for source in opus_sources():
             add_object(source, opus_cflags(abi))

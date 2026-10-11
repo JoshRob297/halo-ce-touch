@@ -19,7 +19,8 @@ rest as the host has it:
   (player_queues_new.c).
 - Every tick, a client sends the host where its own players' units are (it
   predicts them from its own input); the host takes that as they are,
-  within a tolerance, as later Halo engines do, at its next tick.
+  within a tolerance, as later Halo engines do, at its next tick (on a
+  moving elevator, only across: its own elevator takes them up and down).
 - Every tick, the host sends every client every player's unit: which unit
   the player has, alive or not, the seat it rides, its shields and health
   (down, recharging, the damage they show), and where it is (dead: who
@@ -54,6 +55,7 @@ machine (their datum identifiers need not be).
 #include "cseries.h"
 #include "cseries/errors.h"
 #include "cache/cache_files.h"
+#include "devices/devices.h"
 #include "models/model_animation_definitions.h"
 #include "game/game.h"
 #include "game/game_globals.h"
@@ -73,6 +75,7 @@ machine (their datum identifiers need not be).
 #include "network_coop.h"
 #include "network_distributed.h"
 #include "network_voice.h"
+#include "profile_sections.h"
 
 #include <limits.h>
 #include <stdio.h>
@@ -457,6 +460,28 @@ struct distributed_packer
 /* ---------- globals */
 
 static long distributed_last_sent_time = NONE;
+
+/* the tick's steps, timed in the profiling build */
+PROFILE_SECTION(distributed_tick_apply_predictions_section, "network_distributed_tick.apply_predictions")
+PROFILE_SECTION(distributed_tick_apply_vehicle_predictions_section, "network_distributed_tick.apply_vehicle_predictions")
+PROFILE_SECTION(distributed_tick_objects_host_tick_section, "network_distributed_tick.objects_host_tick")
+PROFILE_SECTION(distributed_tick_plan_players_section, "network_distributed_tick.plan_players")
+PROFILE_SECTION(distributed_tick_damage_host_tick_section, "network_distributed_tick.damage_host_tick")
+PROFILE_SECTION(distributed_tick_send_statistics_section, "network_distributed_tick.send_statistics")
+PROFILE_SECTION(distributed_tick_send_pings_section, "network_distributed_tick.send_pings")
+PROFILE_SECTION(distributed_tick_send_structure_bsp_section, "network_distributed_tick.send_structure_bsp")
+PROFILE_SECTION(distributed_tick_send_players_section, "network_distributed_tick.send_players")
+PROFILE_SECTION(distributed_tick_actors_host_tick_section, "network_distributed_tick.actors_host_tick")
+PROFILE_SECTION(distributed_tick_coop_host_tick_section, "network_distributed_tick.coop_host_tick")
+PROFILE_SECTION(distributed_tick_send_pickups_section, "network_distributed_tick.send_pickups")
+PROFILE_SECTION(distributed_tick_send_game_state_section, "network_distributed_tick.send_game_state")
+PROFILE_SECTION(distributed_tick_note_own_positions_section, "network_distributed_tick.note_own_positions")
+PROFILE_SECTION(distributed_tick_send_inputs_section, "network_distributed_tick.send_inputs")
+PROFILE_SECTION(distributed_tick_send_predictions_section, "network_distributed_tick.send_predictions")
+PROFILE_SECTION(distributed_tick_objects_client_tick_section, "network_distributed_tick.objects_client_tick")
+PROFILE_SECTION(distributed_tick_damage_client_tick_section, "network_distributed_tick.damage_client_tick")
+PROFILE_SECTION(distributed_tick_coop_client_tick_section, "network_distributed_tick.coop_client_tick")
+PROFILE_SECTION(distributed_tick_batches_flush_section, "network_distributed_tick.batches_flush")
 
 /* how each player last died, by absolute index: the host's own, which it
 sends its clients, and a client's copy of the host's */
@@ -2001,8 +2026,31 @@ static boolean distributed_on_foot_move_valid(
 	return dx * dx + dy * dy + rise * rise <= reach * reach && -dz <= fall_reach;
 }
 
+/* (the host) whether a unit rides an elevator that is moving (bipeds.c's
+elevator, kept a moment after the unit leaves its floor, as in a jump) */
+static boolean distributed_riding_moving_elevator(
+	long unit_index)
+{
+	struct biped_datum *biped = (struct biped_datum *)object_try_and_get_and_verify_type(unit_index,
+		_object_mask_biped);
+	struct device_datum *elevator;
+
+	if (!biped || biped->biped.elevator_object_index == NONE)
+		return FALSE;
+	elevator = (struct device_datum *)object_try_and_get_and_verify_type(biped->biped.elevator_object_index,
+		_object_mask_device);
+	return elevator && elevator->device.position_velocity != 0.0f;
+}
+
 /* (the host) a client's player's prediction of its unit on foot, taken
-where it says within a tolerance (distributed_apply_predictions) */
+where it says within a tolerance (distributed_apply_predictions). Riding a
+moving elevator, only across: a client's elevator follows the host's
+(network_coop.c), behind it by the time the host's word takes to come, and
+the client's prediction a round trip behind the host's elevator when it
+comes. Taken up and down too, it would put the host's unit under its own
+elevator's floor going up, to fall through it, and the client's after it
+(distributed_correct_own_unit); each machine's elevator carries its own
+unit up and down as it moves, and they meet where it stops. */
 static void distributed_take_prediction(
 	short player_index,
 	long unit_index,
@@ -2011,10 +2059,14 @@ static void distributed_take_prediction(
 	struct distributed_unit_state const *state = &distributed_predictions[player_index].state;
 	struct object_datum *object = object_get(unit_index);
 	long now = game_time_get();
-	real dx = state->position.x - object->object.position.x;
-	real dy = state->position.y - object->object.position.y;
-	real dz = state->position.z - object->object.position.z;
+	real_point3d position = state->position;
+	real dx, dy, dz;
 
+	if (distributed_riding_moving_elevator(unit_index))
+		position.z = object->object.position.z;
+	dx = position.x - object->object.position.x;
+	dy = position.y - object->object.position.y;
+	dz = position.z - object->object.position.z;
 	if (!(dx * dx + dy * dy + dz * dz <= HOST_ACCEPT_TOLERANCE * HOST_ACCEPT_TOLERANCE))
 		return;
 	if (distributed_accepted[player_index].valid)
@@ -2034,7 +2086,7 @@ static void distributed_take_prediction(
 			distributed_host_speeds[player_index].ground_time = now;
 		}
 		else if (ticks <= 0 || !distributed_on_foot_move_valid(bound, &distributed_accepted[player_index].position,
-			&state->position, ticks))
+			&position, ticks))
 		{
 			return;
 		}
@@ -2042,14 +2094,14 @@ static void distributed_take_prediction(
 	/* (no higher above where the host last had it on the ground than a
 	jump, or a throw its ticks gave it, takes it, and in the air falling:
 	past that the host's copy falls as its ticks have it) */
-	if (!(state->position.z - distributed_host_speeds[player_index].ground_height <=
+	if (!(position.z - distributed_host_speeds[player_index].ground_height <=
 		distributed_on_foot_ceiling(player_index, bound)))
 	{
 		return;
 	}
 	/* (the client told which of its ticks the host has it at) */
-	if (distributed_apply_state(unit_index, state, &state->position, 0.0f, HOST_BLEND_DISTANCE, bound->speed,
-		distributed_on_foot_fall_speed(bound, state->position.z)))
+	if (distributed_apply_state(unit_index, state, &position, 0.0f, HOST_BLEND_DISTANCE, bound->speed,
+		distributed_on_foot_fall_speed(bound, position.z)))
 	{
 		distributed_predictions[player_index].taken_time = distributed_predictions[player_index].time;
 		distributed_predictions[player_index].taken_host_time = now;
@@ -2061,7 +2113,7 @@ static void distributed_take_prediction(
 			distributed_accepted[player_index].unit_index = unit_index;
 			distributed_accepted[player_index].time = distributed_predictions[player_index].time;
 			distributed_accepted[player_index].host_time = now;
-			distributed_accepted[player_index].position = state->position;
+			distributed_accepted[player_index].position = position;
 		}
 		distributed_accepted[player_index].taken_host_time = now;
 		distributed_accepted[player_index].taken_host_position = object->object.position;
@@ -3345,41 +3397,42 @@ void network_distributed_tick(
 		decided first: the damage goes where the players it hurt do), and a
 		kill's statistics before the kill, so that a client announcing it
 		counts it (a double kill, a killing spree) */
-		distributed_apply_predictions();
-		network_objects_apply_vehicle_predictions();
-		network_objects_host_tick();
-		distributed_host_plan_players();
-		network_damage_host_tick();
+		profile_scope(distributed_tick_apply_predictions_section, distributed_apply_predictions();)
+		profile_scope(distributed_tick_apply_vehicle_predictions_section, network_objects_apply_vehicle_predictions();)
+		profile_scope(distributed_tick_objects_host_tick_section, network_objects_host_tick();)
+		profile_scope(distributed_tick_plan_players_section, distributed_host_plan_players();)
+		profile_scope(distributed_tick_damage_host_tick_section, network_damage_host_tick();)
 		if (distributed_statistics_due || game_time_get() % STATISTICS_INTERVAL_TICKS == 0)
-			distributed_send_statistics(game_time_get() % STATISTICS_REFRESH_TICKS == 0);
+			profile_scope(distributed_tick_send_statistics_section,
+				distributed_send_statistics(game_time_get() % STATISTICS_REFRESH_TICKS == 0);)
 		distributed_statistics_due = FALSE;
 		if (game_time_get() % PING_INTERVAL_TICKS == 0)
-			distributed_send_pings();
+			profile_scope(distributed_tick_send_pings_section, distributed_send_pings();)
 		/* (before the players, so clients load a new BSP before they hear
 		where the host moved everyone into it) */
 		if (network_coop_active() && (global_structure_bsp_index_get() != distributed_sent_structure_bsp_index ||
 			game_time_get() % STRUCTURE_BSP_INTERVAL_TICKS == 0))
 		{
-			distributed_send_structure_bsp();
+			profile_scope(distributed_tick_send_structure_bsp_section, distributed_send_structure_bsp();)
 		}
-		distributed_host_send_players();
-		network_actors_host_tick();
-		network_coop_host_tick();
-		distributed_send_pickups();
+		profile_scope(distributed_tick_send_players_section, distributed_host_send_players();)
+		profile_scope(distributed_tick_actors_host_tick_section, network_actors_host_tick();)
+		profile_scope(distributed_tick_coop_host_tick_section, network_coop_host_tick();)
+		profile_scope(distributed_tick_send_pickups_section, distributed_send_pickups();)
 		if (game_time_get() % GAME_STATE_INTERVAL_TICKS == 0)
-			distributed_send_game_state(NONE);
+			profile_scope(distributed_tick_send_game_state_section, distributed_send_game_state(NONE);)
 		network_votekick_host_tick();
 	}
 	else if (connection == _game_connection_network_client)
 	{
-		distributed_note_own_positions();
-		distributed_client_send_inputs();
-		distributed_client_send_predictions();
-		network_objects_client_tick();
-		network_damage_client_tick();
-		network_coop_client_tick();
+		profile_scope(distributed_tick_note_own_positions_section, distributed_note_own_positions();)
+		profile_scope(distributed_tick_send_inputs_section, distributed_client_send_inputs();)
+		profile_scope(distributed_tick_send_predictions_section, distributed_client_send_predictions();)
+		profile_scope(distributed_tick_objects_client_tick_section, network_objects_client_tick();)
+		profile_scope(distributed_tick_damage_client_tick_section, network_damage_client_tick();)
+		profile_scope(distributed_tick_coop_client_tick_section, network_coop_client_tick();)
 	}
-	distributed_batches_flush();
+	profile_scope(distributed_tick_batches_flush_section, distributed_batches_flush();)
 	distributed_machines.in_tick = FALSE;
 	distributed_machines.valid = FALSE;
 }
