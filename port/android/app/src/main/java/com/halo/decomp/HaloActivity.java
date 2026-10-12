@@ -38,7 +38,6 @@ public class HaloActivity extends SDLActivity {
     private volatile int[] gestureInsets = new int[] { 0, 0, 0, 0 };
     /** the on-screen touch controls, over SDL's surface */
     private TouchControls touchControls;
-    private MoviePlayer moviePlayer;
     private static final int EXPORT_LAYOUT = 401, IMPORT_LAYOUT = 402;
     private String pendingLayoutExport;
 
@@ -57,7 +56,6 @@ public class HaloActivity extends SDLActivity {
             mLayout.addView(touchControls, new ViewGroup.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
             /* los videos (bink_null.c): los reproduce el aparato sobre el juego */
-            moviePlayer = new MoviePlayer(this, mLayout, touchControls);
         }
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         preferHighestRefreshRate();
