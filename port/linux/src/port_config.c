@@ -1100,7 +1100,11 @@ static const struct config_setting config_settings[] =
 		"co-op, if it can), \"log\" logs the game that runs (and runs its cues);\n"
 		"empty for none." },
 	{ "debug.network_test_start", _config_real, "15.0", "HALO_NETWORK_TEST_START", _environment_value, _platform_all,
-		"Seconds after hosting that an automated test game starts." },
+		"Seconds after hosting that an automated test host leaves its game to the\n"
+		"server's own countdown: the countdown starts a game whose conditions\n"
+		"hold (a host alone included) and every machine's lobby shows it. This is\n"
+		"how long the host waits after that before starting the game by force, if\n"
+		"no countdown is running." },
 	{ "debug.network_test_kill", _config_real, "0.0", "HALO_NETWORK_TEST_KILL", _environment_value, _platform_all,
 		"Every this many seconds an automated test host kills its last player; 0 never." },
 	{ "debug.network_test_score", _config_integer, "0", "HALO_NETWORK_TEST_SCORE", _environment_value, _platform_all,
