@@ -4628,6 +4628,14 @@ void network_game_server_port_log_state(
 are the server's (its pregame game data), so a limit a built-in variant does
 not carry has to be set here, or no game ends by time and the list stands
 still. */
+/* port: whether the game is counting down to its start (network_test.c waits
+for it: the lobby of every machine shows it) */
+boolean network_game_server_port_countdown_active(
+	struct network_game_server *server)
+{
+	return server != NULL && server->countdown_state.active;
+}
+
 void network_game_server_port_set_time_limit(
 	struct network_game_server *server,
 	long minutes)
