@@ -1231,6 +1231,22 @@ void network_test_update(
 	if (network_test.mode == _network_test_off)
 		return;
 
+	/* port: a host nobody watches leaves no trace of what it is doing, and a
+	dedicated host has no screen to show a clock on: its state, and how much
+	of the game it is running is left, go to the engine's log every five
+	seconds (network_server_manager.c's port_log_state) */
+	{
+		static real last_state_log;
+
+		last_state_log += seconds;
+		if (network_test.mode == _network_test_host && last_state_log >= 5.0f &&
+			global_network_game_server_get())
+		{
+			last_state_log = 0.0f;
+			network_game_server_port_log_state(global_network_game_server_get());
+		}
+	}
+
 	/* debug.network_test_chat: each client's player types "gg ez" on the
 	text chat's on-screen keyboard 32 seconds on, as a controller does, and
 	sends it to the team (each frame, not each second, as the rest) */
@@ -1577,7 +1593,7 @@ void network_test_update(
 				network_test.setup_seconds = 0.0f;
 				network_test.menu_seconds = 0.0f;
 				network_test.player_added = FALSE;
-				
+
 				/* (as picking the next game's map does: the scores' map choice
 				holds the countdown) */
 				if (global_network_game_server_get())
@@ -1809,18 +1825,6 @@ void network_test_update(
 					network_game_server_change_game_variant(global_network_game_server_get(), &variant);
 				}
 				network_test.map_set = TRUE;
-			}
-
-			/* port: why a game the host asked for is not starting (every five
-			seconds: a host nobody watches leaves no trace of it) */
-			{
-				static real last_state_log;
-
-				if (network_test.setup_seconds - last_state_log >= 5.0f)
-				{
-					last_state_log = network_test.setup_seconds;
-					network_game_server_port_log_state(global_network_game_server_get());
-				}
 			}
 
 			if (!network_test.player_added && network_test.setup_seconds >= 2.0f && global_network_game_client_get())
