@@ -1118,6 +1118,13 @@ static void chat_add_notice(
 	error(_error_log, "chat notice: %s", line->text);
 }
 
+/* ... to this machine's own players (round_clock.c) */
+void network_chat_add_notice(
+	char const *text)
+{
+	chat_add_notice(text);
+}
+
 /* ---------- the host */
 
 /* the vehicle a player rides in, the outermost (a vehicle carried by another
