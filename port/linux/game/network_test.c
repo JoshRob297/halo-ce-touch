@@ -137,6 +137,8 @@ static struct
 	(a built-in variant's time limit is 0, so a game with no score it
 	reaches never ends and the host never moves on) */
 	long time_limit;
+	/* whether the host takes a player of its own (debug.network_test_player) */
+	boolean add_player;
 	/* the seconds the lobby counts down to the start of each game, 0 to keep
 	the game's own (debug.network_test_countdown) */
 	long countdown_seconds;
@@ -268,6 +270,7 @@ static void network_test_read_settings(
 	network_test.score_to_win = (long)config_integer("debug.network_test_score");
 	network_test.time_limit = (long)config_integer("debug.network_test_time");
 	network_test.countdown_seconds = (long)config_integer("debug.network_test_countdown");
+	network_test.add_player = config_boolean("debug.network_test_player") != 0;
 	if (network_test.mode != _network_test_off)
 		platform_log("network test: %s", setting);
 }
@@ -1573,7 +1576,8 @@ void network_test_update(
 				network_test.map_set = TRUE;
 			}
 
-			if (!network_test.player_added && network_test.setup_seconds >= 2.0f && global_network_game_client_get())
+			if (!network_test.player_added && network_test.add_player &&
+				network_test.setup_seconds >= 2.0f && global_network_game_client_get())
 			{
 				network_test_set_name();
 				network_test.player_added = network_game_client_add_player(global_network_game_client_get(), 0);
@@ -1598,15 +1602,19 @@ void network_test_update(
 				{
 					network_test.started = FALSE;
 				}
-				else if (network_test.setup_seconds >= network_test.start_delay + 45.0f)
+				else if (network_test.setup_seconds >= network_test.start_delay + 45.0f &&
+					network_game_server_port_player_count(server) > 0)
 				{
+					/* (a game nobody is in is not started: the host waits in its
+					lobby for the first player, as a dedicated host does) */
 					platform_log("network test: no countdown started the game; forcing it");
 					network_game_server_port_force_start(server);
 				}
 				else
 				{
 					/* (asking is free: the server's own conditions decide, and
-					the player the host adds is one of them) */
+					a player is one of them: the host's own, or the one a
+					machine joining brings) */
 					network_game_server_port_start_countdown(server, network_test.countdown_seconds);
 				}
 			}

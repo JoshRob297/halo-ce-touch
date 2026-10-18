@@ -812,15 +812,19 @@ button on the scores does; `;` between such entries is a list of maps to
 rotate through, the first again past the last, with `debug.network_test_time`
 giving each game a time limit, so a game whose score nobody reaches still
 ends and the list moves on, and the host asking for one player and one
-machine, so a host with nobody on it starts its games and takes players
-again after each). The game starts on the server's own countdown (31
+machine, so a host with a player on it starts its games and takes players
+again after each; `debug.network_test_player` off leaves the host without a
+player of its own, so its games are the players' alone, and the host waits in
+its lobby for the first one, a game's countdown needing a player). The game
+starts on the server's own countdown (31
 seconds), which every machine's lobby shows: a machine joining the lobby is
 what starts it, and a host with nobody but itself asks the server for one
 (`network_game_server_port_start_countdown`), so the lobby's counter is the
 real one, and `debug.network_test_countdown` shortens the countdown a host
 gives its lobby (0: the game's own, 31 seconds), so that a rotation of short
 games is not waited out. `debug.network_test_start` is how long the host waits
-before starting the game by force, when no countdown starts it. `debug.network_test_public` lists the host's
+before starting the game by force, when no countdown starts it and there is a
+player in it. `debug.network_test_public` lists the host's
 game in the server browser, and `browse` joins the one listed there with the
 most players (not co-op, if it can), as the server browser does
 (port/web/tests/internet.mjs plays the native build and browsers so).

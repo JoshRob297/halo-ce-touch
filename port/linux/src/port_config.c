@@ -527,6 +527,14 @@ static const struct config_setting config_settings[] =
 		"hold (a host alone included) and every machine's lobby shows it. This is\n"
 		"how long the host waits after that before starting the game by force, if\n"
 		"no countdown is running." },
+	{ "debug.network_test_player", _config_boolean, "true", "HALO_NETWORK_TEST_PLAYER", _environment_value,
+		_platform_all,
+		"The host's own player (the automated test's, which upstream adds so\n"
+		"that the test has one to shoot and be shot). true: the host plays as\n"
+		"a player, so its map list moves on with nobody on the server. false:\n"
+		"the host takes no player and its games are the players' alone, the\n"
+		"host waiting in its lobby for the first one (a game's countdown needs\n"
+		"a player, and one player with nobody else is enough)." },
 	{ "debug.network_test_countdown", _config_integer, "0", "HALO_NETWORK_TEST_COUNTDOWN", _environment_value,
 		_platform_all,
 		"Seconds the lobby counts down to the start of a game a host runs: 0 the\n"
