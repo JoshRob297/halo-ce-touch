@@ -4624,6 +4624,20 @@ void network_game_server_port_log_state(
 		network_game_server_have_all_machines_have_precached(server));
 }
 
+/* port: the minutes a game a host's list plays is given. The game's options
+are the server's (its pregame game data), so a limit a built-in variant does
+not carry has to be set here, or no game ends by time and the list stands
+still. */
+void network_game_server_port_set_time_limit(
+	struct network_game_server *server,
+	long minutes)
+{
+	if (!server)
+		return;
+
+	server->game.variant_options.time_limit = (short)PIN(minutes, 0, 32767);
+}
+
 long network_game_server_port_player_count(
 	struct network_game_server *server)
 {
