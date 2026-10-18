@@ -922,7 +922,12 @@ which every machine's `debug.txt` records as
 it shows them (the notices as `chat notice:`), and `debug.network_test_score`
 shortens the game, to test the next (`host:<map>:<variant>,<variant>...`
 plays the variants in turn, the next once a game is over, as the host's
-button on the scores does). `debug.network_test_public` lists the host's
+button on the scores does; `;` between such entries is a list of maps to
+rotate through, the first again past the last, with `debug.network_test_time`
+giving each game a time limit, so a game whose score nobody reaches still
+ends and the list moves on, and the host asking for one player and one
+machine, so a host with nobody on it starts its games and takes players
+again after each). `debug.network_test_public` lists the host's
 game in the server browser, and `browse` joins the one listed there with the
 most players (not co-op, if it can), as the server browser does
 (port/web/tests/internet.mjs plays the native build and browsers so).
