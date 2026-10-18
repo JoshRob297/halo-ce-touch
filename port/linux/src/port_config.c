@@ -1105,6 +1105,11 @@ static const struct config_setting config_settings[] =
 		"hold (a host alone included) and every machine's lobby shows it. This is\n"
 		"how long the host waits after that before starting the game by force, if\n"
 		"no countdown is running." },
+	{ "debug.network_test_countdown", _config_integer, "0", "HALO_NETWORK_TEST_COUNTDOWN", _environment_value,
+		_platform_all,
+		"Seconds the lobby counts down to the start of a game a host runs: 0 the\n"
+		"game's own (31), and a host the map list is given sets its own here so\n"
+		"that a rotation of short games is not waited out." },
 	{ "debug.network_test_kill", _config_real, "0.0", "HALO_NETWORK_TEST_KILL", _environment_value, _platform_all,
 		"Every this many seconds an automated test host kills its last player; 0 never." },
 	{ "debug.network_test_score", _config_integer, "0", "HALO_NETWORK_TEST_SCORE", _environment_value, _platform_all,
