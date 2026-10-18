@@ -1558,6 +1558,13 @@ void network_test_update(
 						player_ui_set_game_variant_options(&options);
 					}
 					network_game_server_change_game_variant(global_network_game_server_get(), &variant);
+					/* port: debug.network_test_time as the game's own limit: the
+					game's options come from the server (its pregame data), and a
+					built-in variant's time limit is none, so a game whose score
+					nobody reaches would never end and the list would stand still */
+					if (network_test.time_limit > 0)
+						network_game_server_port_set_time_limit(global_network_game_server_get(),
+							network_test.time_limit);
 				}
 				network_test.map_set = TRUE;
 			}

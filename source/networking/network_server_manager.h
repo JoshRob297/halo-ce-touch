@@ -69,6 +69,13 @@ void network_game_server_port_set_minimum_machines(
 its countdown and the conditions it waits for (network_test.c) */
 void network_game_server_port_log_state(
 	struct network_game_server *server);
+/* port: the minutes a game a host's list plays is given (the game's own
+options come from the server, not from the menus' variant: a built-in
+variant's time limit is none, and a game whose score nobody reaches would
+never end and the list would stand still) */
+void network_game_server_port_set_time_limit(
+	struct network_game_server *server,
+	long minutes);
 /* port: directly force the server to start loading the network game,
 bypassing client countdown packets that can be dropped or delayed */
 boolean network_game_server_port_force_start(
