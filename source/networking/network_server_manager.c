@@ -4442,12 +4442,19 @@ void network_game_server_port_start_countdown(
 {
 	if (!server || server->state != _network_game_server_state_pregame)
 		return;
+	/* (a game that has been told to start keeps its countdown: asking again
+	would count a second one) */
+	if (!network_game_server_lobby_is_open(server))
+		return;
 
 	/* the host's own client pauses the countdown when it loads the lobby
 	(network_game_reset_to_pregame_ui, which the host machine takes for its
 	postgame screens): a host nobody presses a button on has to take the pause
-	off itself, or its lobby never counts */
-	server->countdown_state.paused = FALSE;
+	off itself, or its lobby never counts. Asking is free and this is called
+	every frame: the countdown starts as soon as the game's own conditions
+	hold (the player the host adds is one of them) */
+	if (!server->countdown_state.active)
+		server->countdown_state.paused = FALSE;
 	if (server->countdown_state.active)
 		return;
 

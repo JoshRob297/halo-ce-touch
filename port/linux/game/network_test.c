@@ -1588,29 +1588,26 @@ void network_test_update(
 			if (network_test.setup_seconds >= network_test.start_delay)
 			{
 				struct network_game_server *server = global_network_game_server_get();
-				static boolean countdown_asked;
 
 				if (game_engine_running())
 				{
 					network_test.started = TRUE;
-					countdown_asked = FALSE;
 					platform_log("network test: game is now running");
 				}
 				else if (network_game_server_port_countdown_active(server))
 				{
 					network_test.started = FALSE;
 				}
-				else if (!countdown_asked)
-				{
-					countdown_asked = TRUE;
-					platform_log("network test: the lobby's countdown started");
-					network_game_server_port_start_countdown(server, network_test.countdown_seconds);
-				}
 				else if (network_test.setup_seconds >= network_test.start_delay + 45.0f)
 				{
 					platform_log("network test: no countdown started the game; forcing it");
-					countdown_asked = FALSE;
 					network_game_server_port_force_start(server);
+				}
+				else
+				{
+					/* (asking is free: the server's own conditions decide, and
+					the player the host adds is one of them) */
+					network_game_server_port_start_countdown(server, network_test.countdown_seconds);
 				}
 			}
 		}
