@@ -4594,12 +4594,25 @@ boolean network_game_server_port_force_start(
 void network_game_server_port_log_state(
 	struct network_game_server *server)
 {
+	long time_limit;
+	long played;
+
 	if (!server)
 		return;
 
+	/* port: the map, and the minutes the game it is running has left (the
+	game's own time limit, and the seconds the engine has played), so that a
+	host nobody watches shows a clock where a screen would */
+	time_limit = (long)server->game.variant_options.time_limit;
+	played = game_time_get() / TICKS_PER_SECOND;
+
 	network_event(
-		"server: state %d (pregame 0, ingame 1, postgame 2), countdown %s%s, %ld ms left; machines %d, a player on each %d, teams %d, players %ld of %ld, all pre-cached %d",
+		"server: state %d (pregame 0, ingame 1, postgame 2), map %s, %ld of %ld minutes left after %ld s, countdown %s%s, %ld ms left; machines %d, a player on each %d, teams %d, players %ld of %ld, all pre-cached %d",
 		server->state,
+		server->game.map.name,
+		time_limit > 0 ? (time_limit * 60L - played + 59) / 60 : 0,
+		time_limit,
+		played,
 		server->countdown_state.active ? "active" : "inactive",
 		server->countdown_state.paused ? " (paused)" : "",
 		countdown_timer_get_time_remaining(&server->countdown_state.timer),
