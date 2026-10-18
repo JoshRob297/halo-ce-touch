@@ -4579,6 +4579,21 @@ which a dedicated host never reaches with only its own player: it sits
 in the lobby and the map list it was given never moves on. */
 /* port: the state a host nobody watches cannot see: why a game it asked
 for did not start (network_test.c calls it every few seconds) */
+/* port: end a host's game, the way its clock or its score does
+(network_game_server_switch_to_postgame). A dedicated host whose players have
+all left closes the game it is in, so that it returns to its lobby and its map
+list moves on, instead of running out an empty game's clock (network_test.c
+calls it) */
+void network_game_server_port_end_game(
+	struct network_game_server *server)
+{
+	if (!server || server->state != _network_game_server_state_ingame)
+		return;
+
+	network_event("network_game_server_port_end_game: no players left, ending the game");
+	network_game_server_switch_to_postgame(server);
+}
+
 /* port: directly start the game from the server side, ensuring a headless
 dedicated host always progresses through its rotation automatically */
 boolean network_game_server_port_force_start(

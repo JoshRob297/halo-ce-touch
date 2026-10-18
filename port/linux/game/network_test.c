@@ -181,6 +181,8 @@ static struct
 	long time_limit;
 	/* whether the host takes a player of its own (debug.network_test_player) */
 	boolean add_player;
+	/* the seconds its game has been running with no players in it */
+	real empty_seconds;
 	/* the seconds the lobby counts down to the start of each game, 0 to keep
 	the game's own (debug.network_test_countdown) */
 	long countdown_seconds;
@@ -1860,6 +1862,27 @@ void network_test_update(
 
 				if (game_engine_running())
 				{
+					/* port: a dedicated host whose players have all left closes
+					the game it is in (postgame, then its lobby again and its map
+					list on, NETCODE.md), where an empty game would run out its
+					clock with nobody in it. The seconds are a grace: a connection
+					that comes back inside them keeps the game it was in. A host
+					that plays as a player of its own is the game's business and is
+					left alone */
+					if (!network_test.add_player && server &&
+						network_game_server_port_player_count(server) <= 0)
+					{
+						network_test.empty_seconds += seconds;
+						if (network_test.empty_seconds >= 15.0f)
+						{
+							network_game_server_port_end_game(server);
+							network_test.empty_seconds = 0.0f;
+						}
+					}
+					else
+					{
+						network_test.empty_seconds = 0.0f;
+					}
 					network_test.started = TRUE;
 					platform_log("network test: game is now running");
 				}
