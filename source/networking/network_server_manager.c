@@ -4441,6 +4441,12 @@ void network_game_server_port_start_countdown(
 {
 	if (!server || server->state != _network_game_server_state_pregame)
 		return;
+
+	/* the host's own client pauses the countdown when it loads the lobby
+	(network_game_reset_to_pregame_ui, which the host machine takes for its
+	postgame screens): a host nobody presses a button on has to take the pause
+	off itself, or its lobby never counts */
+	server->countdown_state.paused = FALSE;
 	if (server->countdown_state.active)
 		return;
 
