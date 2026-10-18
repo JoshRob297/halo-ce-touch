@@ -1574,23 +1574,25 @@ void network_test_update(
 				network_test_set_name();
 				network_test.player_added = network_game_client_add_player(global_network_game_client_get(), 0);
 			}
+			/* port: the game starts on the server's own countdown, which every
+			machine's lobby shows (NETWORK_GAME_COUNTDOWN_TIME, 31 seconds): the
+			host asks for nothing and lets it run, so the lobby's counter is the
+			real one. A countdown that is not running (a machine holding it, or a
+			state this tree's own changes have not seen) is left to the delay
+			below and then started by force, which every machine sees as the game
+			beginning at once */
 			if (network_test.setup_seconds >= network_test.start_delay)
 			{
-				static real last_start_request;
-
-				/* port: keep setup_seconds advancing and re-request start every
-				2 seconds until the engine actually transitions to running */
-				if (network_test.setup_seconds - last_start_request >= 2.0f)
-				{
-					last_start_request = network_test.setup_seconds;
-					platform_log("network test: starting the game (forcing server start)");
-					network_game_client_request_immediate_start();
-					network_game_server_port_force_start(global_network_game_server_get());
-				}
 				if (game_engine_running())
 				{
 					network_test.started = TRUE;
 					platform_log("network test: game is now running");
+				}
+				else if (network_test.setup_seconds >= network_test.start_delay + 15.0f &&
+					!network_game_server_port_countdown_active(global_network_game_server_get()))
+				{
+					platform_log("network test: no countdown is running; forcing the start");
+					network_game_server_port_force_start(global_network_game_server_get());
 				}
 			}
 		}

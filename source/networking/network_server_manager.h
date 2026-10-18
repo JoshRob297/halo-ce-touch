@@ -69,6 +69,12 @@ void network_game_server_port_set_minimum_machines(
 its countdown and the conditions it waits for (network_test.c) */
 void network_game_server_port_log_state(
 	struct network_game_server *server);
+/* port: whether the game is counting down to its start. The lobby shows it
+to every machine (network_game_server_countdown_started), so a host that lets
+it run shows the players the time they have (network_test.c), rather than
+starting the game itself. */
+boolean network_game_server_port_countdown_active(
+	struct network_game_server *server);
 /* port: the minutes a game a host's list plays is given (the game's own
 options come from the server, not from the menus' variant: a built-in
 variant's time limit is none, and a game whose score nobody reaches would

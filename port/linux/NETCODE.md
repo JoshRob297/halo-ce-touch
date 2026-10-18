@@ -813,7 +813,10 @@ rotate through, the first again past the last, with `debug.network_test_time`
 giving each game a time limit, so a game whose score nobody reaches still
 ends and the list moves on, and the host asking for one player and one
 machine, so a host with nobody on it starts its games and takes players
-again after each). `debug.network_test_public` lists the host's
+again after each). The game starts on the server's own countdown (31
+seconds), which every machine's lobby shows, so the lobby's counter is the
+real one; `debug.network_test_start` is how long the host waits before
+forcing a start when no countdown is running. `debug.network_test_public` lists the host's
 game in the server browser, and `browse` joins the one listed there with the
 most players (not co-op, if it can), as the server browser does
 (port/web/tests/internet.mjs plays the native build and browsers so).
