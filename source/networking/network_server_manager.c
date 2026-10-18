@@ -4433,6 +4433,22 @@ boolean network_game_server_port_countdown_active(
 	return server != NULL && server->countdown_state.active;
 }
 
+/* port: start the lobby's countdown (a machine joining the lobby does it, and
+a host at the menus has none of its own). The countdown itself decides whether
+a game's conditions allow it, so this asks and waits. */
+void network_game_server_port_start_countdown(
+	struct network_game_server *server)
+{
+	if (!server || server->state != _network_game_server_state_pregame)
+		return;
+	if (server->countdown_state.active)
+		return;
+
+	network_game_server_update_countdown(
+		server,
+		_network_game_server_countdown_event_player_joined);
+}
+
 void network_game_server_port_set_time_limit(
 	struct network_game_server *server,
 	long minutes)

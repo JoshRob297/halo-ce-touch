@@ -1575,24 +1575,38 @@ void network_test_update(
 				network_test.player_added = network_game_client_add_player(global_network_game_client_get(), 0);
 			}
 			/* port: the game starts on the server's own countdown, which every
-			machine's lobby shows (NETWORK_GAME_COUNTDOWN_TIME, 31 seconds): the
-			host asks for nothing and lets it run, so the lobby's counter is the
-			real one. A countdown that is not running (a machine holding it, or a
-			state this tree's own changes have not seen) is left to the delay
-			below and then started by force, which every machine sees as the game
+			machine's lobby shows (NETWORK_GAME_COUNTDOWN_TIME, 31 seconds). A
+			machine joining the lobby is what starts it, and a host with nobody
+			but itself has none, so the host asks the server for it directly and
+			then leaves the game to run. Only when no countdown starts the game
+			does the host start it by force, which every machine sees as the game
 			beginning at once */
 			if (network_test.setup_seconds >= network_test.start_delay)
 			{
+				struct network_game_server *server = global_network_game_server_get();
+				static boolean countdown_asked;
+
 				if (game_engine_running())
 				{
 					network_test.started = TRUE;
+					countdown_asked = FALSE;
 					platform_log("network test: game is now running");
 				}
-				else if (network_test.setup_seconds >= network_test.start_delay + 15.0f &&
-					!network_game_server_port_countdown_active(global_network_game_server_get()))
+				else if (network_game_server_port_countdown_active(server))
 				{
-					platform_log("network test: no countdown is running; forcing the start");
-					network_game_server_port_force_start(global_network_game_server_get());
+					network_test.started = FALSE;
+				}
+				else if (!countdown_asked)
+				{
+					countdown_asked = TRUE;
+					platform_log("network test: the lobby's countdown started");
+					network_game_server_port_start_countdown(server);
+				}
+				else if (network_test.setup_seconds >= network_test.start_delay + 45.0f)
+				{
+					platform_log("network test: no countdown started the game; forcing it");
+					countdown_asked = FALSE;
+					network_game_server_port_force_start(server);
 				}
 			}
 		}
