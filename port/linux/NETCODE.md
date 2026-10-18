@@ -929,7 +929,12 @@ ends and the list moves on, and the host asking for one player and one
 machine, so a host with a player on it starts its games and takes players
 again after each; `debug.network_test_player` off leaves the host without a
 player of its own, so its games are the players' alone, and the host waits in
-its lobby for the first one, a game's countdown needing a player). The game
+its lobby for the first one, a game's countdown needing a player). A host
+without a player of its own keeps its game when its players leave
+(`network_test_host_keeps_its_game`, which the engine asks before quitting a
+game whose machine has no players): the game ends with no players and returns
+it to its lobby, its server, its tunnel and its listing kept, where quitting
+would dispose them and leave it up but invisible to everyone. The game
 starts on the server's own countdown (31
 seconds), which every machine's lobby shows: a machine joining the lobby is
 what starts it, and a host with nobody but itself asks the server for one

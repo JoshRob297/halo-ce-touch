@@ -1139,6 +1139,17 @@ static void network_test_pickup(
 	}
 }
 
+/* (the engine asks: a host that took no player of its own — the setting is
+debug.network_test_player — sees every player leaving as its own players'
+leaving and would quit the game, which disposes its server, its tunnel and its
+listing, leaving the host up but invisible. Such a host keeps its game
+instead: the game ends with no players and returns it to its lobby, its server
+kept, and its list of maps moves on, NETCODE.md) */
+boolean network_test_host_keeps_its_game(void)
+{
+	return network_test.mode == _network_test_host && !network_test.add_player;
+}
+
 void network_test_update(
 	boolean main_menu_loaded,
 	real seconds)

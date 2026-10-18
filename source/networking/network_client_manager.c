@@ -394,6 +394,10 @@ symbols in this file:
 #include "map_share.h" /* port: port/linux/game/map_share.c */
 #include "custom_edition_cache.h" /* port: port/linux/game/custom_edition_cache.c */
 
+/* port/linux/game/network_test.c's: whether this machine is a dedicated host
+without a player of its own, which keeps its game (NETCODE.md) */
+boolean network_test_host_keeps_its_game(void);
+
 /* ---------- constants */
 
 enum
@@ -1846,8 +1850,16 @@ boolean network_game_client_remove_player(
 				}
 			}
 
-			if (network_player_index == MAXIMUM_NUMBER_OF_PLAYERS)
+			if (network_player_index == MAXIMUM_NUMBER_OF_PLAYERS &&
+				!network_test_host_keeps_its_game())
 			{
+				/* port: a dedicated host has no player of its own
+				(debug.network_test_player), so every player leaving reads as its
+				own players leaving: the machine stays, its game ends with no
+				players and returns it to its lobby, and its server, its tunnel
+				and its listing are kept. Leaving would dispose them (network
+				server disposed, no network game server): a host left running
+				would be up but invisible to everyone */
 				network_game_client_all_local_players_have_quit();
 				network_event("no local players remain in the game, exiting the game now");
 			}
