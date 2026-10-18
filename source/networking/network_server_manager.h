@@ -90,6 +90,10 @@ never end and the list would stand still) */
 void network_game_server_port_set_time_limit(
 	struct network_game_server *server,
 	long minutes);
+/* port: end a host's game (postgame), for a dedicated host whose players have
+all left (network_test.c) */
+void network_game_server_port_end_game(
+	struct network_game_server *server);
 /* port: directly force the server to start loading the network game,
 bypassing client countdown packets that can be dropped or delayed */
 boolean network_game_server_port_force_start(

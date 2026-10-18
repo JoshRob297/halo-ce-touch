@@ -820,7 +820,11 @@ without a player of its own keeps its game when its players leave
 (`network_test_host_keeps_its_game`, which the engine asks before quitting a
 game whose machine has no players): the game ends with no players and returns
 it to its lobby, its server, its tunnel and its listing kept, where quitting
-would dispose them and leave it up but invisible to everyone. The game
+would dispose them and leave it up but invisible to everyone. The game is
+closed for it fifteen seconds after its last player leaves (a grace: a
+connection that comes back inside them keeps the game it was in)
+(`network_game_server_port_end_game`), so the lobby comes back and the list of
+maps carries on instead of an empty game running out its clock. The game
 starts on the server's own countdown (31
 seconds), which every machine's lobby shows: a machine joining the lobby is
 what starts it, and a host with nobody but itself asks the server for one
