@@ -4640,7 +4640,8 @@ boolean network_game_server_port_countdown_active(
 a host at the menus has none of its own). The countdown itself decides whether
 a game's conditions allow it, so this asks and waits. */
 void network_game_server_port_start_countdown(
-	struct network_game_server *server)
+	struct network_game_server *server,
+	long seconds)
 {
 	if (!server || server->state != _network_game_server_state_pregame)
 		return;
@@ -4653,9 +4654,22 @@ void network_game_server_port_start_countdown(
 	if (server->countdown_state.active)
 		return;
 
+	/* (the game's own countdown decides whether a game's conditions allow
+	one, and counts its own length: a shorter one is set and told again) */
 	network_game_server_update_countdown(
 		server,
 		_network_game_server_countdown_event_player_joined);
+	if (!server->countdown_state.active)
+		return;
+	if (seconds > 0 &&
+		(long)countdown_timer_get_time_remaining(&server->countdown_state.timer) != seconds * 1000L)
+	{
+		countdown_timer_set_time_remaining(
+			&server->countdown_state.timer,
+			(unsigned long)(seconds * 1000L));
+		server->countdown_state.last_countdown_message_time = 0;
+		network_game_server_countdown_started(server);
+	}
 }
 
 void network_game_server_port_set_time_limit(

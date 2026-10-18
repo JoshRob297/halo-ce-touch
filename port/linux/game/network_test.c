@@ -157,6 +157,9 @@ static struct
 	(a built-in variant's time limit is 0, so a game with no score it
 	reaches never ends and the host never moves on) */
 	long time_limit;
+	/* the seconds the lobby counts down to the start of each game, 0 to keep
+	the game's own (debug.network_test_countdown) */
+	long countdown_seconds;
 	long logged_time;
 	boolean public_game;
 	boolean browsing;
@@ -354,6 +357,7 @@ static void network_test_read_settings(
 	}
 #endif
 	network_test.time_limit = (long)config_integer("debug.network_test_time");
+	network_test.countdown_seconds = (long)config_integer("debug.network_test_countdown");
 	if (network_test.mode != _network_test_off)
 		platform_log("network test: %s", setting);
 }
@@ -1765,7 +1769,7 @@ void network_test_update(
 				{
 					countdown_asked = TRUE;
 					platform_log("network test: the lobby's countdown started");
-					network_game_server_port_start_countdown(server);
+					network_game_server_port_start_countdown(server, network_test.countdown_seconds);
 				}
 				else if (network_test.setup_seconds >= network_test.start_delay + 45.0f)
 				{

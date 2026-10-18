@@ -78,9 +78,11 @@ boolean network_game_server_port_countdown_active(
 /* port: start the lobby's countdown, as a machine joining the lobby does
 (network_game_server_update_countdown). A host with nobody but itself at the
 menus has no client of its own to ask for one, and the countdown is what every
-machine's lobby shows until the game begins (network_test.c). */
+machine's lobby shows until the game begins (network_test.c). seconds: how
+long it counts (0: the game's own, NETWORK_GAME_COUNTDOWN_TIME). */
 void network_game_server_port_start_countdown(
-	struct network_game_server *server);
+	struct network_game_server *server,
+	long seconds);
 /* port: the minutes a game a host's list plays is given (the game's own
 options come from the server, not from the menus' variant: a built-in
 variant's time limit is none, and a game whose score nobody reaches would
