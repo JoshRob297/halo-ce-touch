@@ -232,6 +232,70 @@ def opus_cflags(abi: str) -> str:
                                                             ("include", "celt", "silk", "silk/float")), "-w"])
 
 
+def linux_sysroot(n: Writer, build_dir: Path) -> Tuple[Path, Path]:
+    """The build's 32-bit x86 system root (Debian 11, tools/linux_sysroot.py):
+    its stamp and its folder. The portable build draws against it, and the
+    movies' FFmpeg is built against it whichever build this is, so that a
+    32-bit build does not need a 32-bit FFmpeg on the build machine."""
+    third_party = build_dir / "third_party"
+    sysroot = third_party / "sysroot"
+    stamp = third_party / "stamp"
+    sdl_license_source = third_party / "SDL3" / "LICENSE.txt"
+    n.rule(
+        name="linux_sysroot",
+        command=f"$python {SYSROOT_SCRIPT} {third_party}",
+        description="LINUX SYSROOT (Debian 11 i386, SDL3 source)",
+        restat=True,
+    )
+    # (and SDL's license, which the release carries)
+    n.build(outputs=stamp, rule="linux_sysroot", implicit=[SYSROOT_SCRIPT],
+            implicit_outputs=[sdl_license_source])
+    return stamp, sysroot
+
+
+# FFmpeg (LGPL) decodes the movies, which the port has no decoder for
+# (bink_ffmpeg.c implements the SDK's own entry points behind it, and
+# bink_null.c keeps the stubs). It is built here, for this target and against
+# the build's system root, rather than taken from the build machine: the game
+# is 32-bit code and the build machine's FFmpeg is usually not, and a build
+# that runs on older systems must not take the build machine's glibc either.
+FFMPEG_LIBS = ["libavformat", "libavcodec", "libswscale", "libswresample", "libavutil"]
+
+# (the ones of the game's own flags that FFmpeg has to see too: they change how
+# a structure is laid out and how it comes back from a function, and a call that
+# returns a small structure -- av_guess_frame_rate, the movies' frame rate -- is
+# where a mismatch shows)
+FFMPEG_ABI_FLAGS = [
+    "-fshort-wchar", "-malign-double", "-fcommon", "-fno-pic", "-fno-strict-aliasing",
+    "-fwrapv", "-fno-delete-null-pointer-checks", "-freg-struct-return", "-ffp-contract=off",
+]
+
+
+def linux_ffmpeg(n: Writer, build_dir: Path, cc: str, sysroot: Path, sysroot_stamp: Path
+                 ) -> Tuple[List[str], List[str], Path, List[Path]]:
+    """The movies' FFmpeg: the compiler flags, the linker's, the stamp the
+    units wait for, and the libraries themselves (which the link waits for)."""
+    root = build_dir / "ffmpeg"
+    archives = [root / "build" / library / f"{library}.a" for library in FFMPEG_LIBS]
+    stamp = root / "ffmpeg.stamp"
+    n.rule(
+        name="linux_ffmpeg",
+        command=(f"$python {Path('tools/linux_ffmpeg.py')} {root} --sysroot {sysroot} --cc {cc} "
+                 f"--flags \"{' '.join(FFMPEG_ABI_FLAGS)}\""),
+        description="LINUX FFMPEG (the movies' decoder)",
+        restat=True,
+        pool="console",
+    )
+    n.build(outputs=[*archives, stamp], rule="linux_ffmpeg",
+            implicit=[Path("tools/linux_ffmpeg.py"), sysroot_stamp])
+    # (the sources include FFmpeg's headers, the generated ones among them)
+    cflags = ["-DHALO_BINK_FFMPEG", f"-I{root / 'src'}", f"-I{root / 'build'}"]
+    # (FFmpeg's libraries call each other's symbols: the group is what a static
+    # link needs to resolve them in one pass)
+    libs = ["-Wl,--start-group", *[str(archive) for archive in archives], "-Wl,--end-group"]
+    return cflags, libs, stamp, archives
+
+
 def musl_math_sources() -> List[Path]:
     """musl's maths functions the game uses (port/third_party/musl-math)"""
     return sorted((MUSL_MATH_DIR / "src").glob("*.c"))
@@ -276,26 +340,17 @@ SDL_OPTIONS = [
 ]
 
 
-def portable_sdl(n: Writer, sln: Any, build_dir: Path, cc: str) -> Tuple[List[str], List[str], Path, Path, Path]:
-    """The portable build's system root and SDL3: the compiler's flags, the
-    linker's, what every unit waits for (the system root's stamp), the
+def portable_sdl(n: Writer, sln: Any, build_dir: Path, cc: str, stamp: Path, sysroot: Path
+                 ) -> Tuple[List[str], List[str], Path, Path]:
+    """The portable build's SDL3: the compiler's flags, the linker's, the
     libSDL3.so.0 that the executable links to, and SDL's license (which the
-    release carries beside it)."""
+    release carries beside it). The system root it draws against comes from
+    linux_sysroot()."""
     third_party = build_dir / "third_party"
-    sysroot = third_party / "sysroot"
     sdl_source = third_party / "SDL3"
-    stamp = third_party / "stamp"
     sdl_build = build_dir / "sdl3-build"
     libsdl = sdl_build / "libSDL3.so.0"
-    n.rule(
-        name="linux_sysroot",
-        command=f"$python {SYSROOT_SCRIPT} {third_party}",
-        description="LINUX SYSROOT (Debian 11 i386, SDL3 source)",
-        restat=True,
-    )
-    # (and SDL's license, which the release carries)
     sdl_license_source = sdl_source / "LICENSE.txt"
-    n.build(outputs=stamp, rule="linux_sysroot", implicit=[SYSROOT_SCRIPT], implicit_outputs=[sdl_license_source])
     launcher = getattr(sln, "compiler_launcher", None)
     options = SDL_OPTIONS + ([f"-DCMAKE_C_COMPILER_LAUNCHER={launcher}"] if launcher else [])
     n.rule(
@@ -319,7 +374,7 @@ def portable_sdl(n: Writer, sln: Any, build_dir: Path, cc: str) -> Tuple[List[st
                "-Wl,--disable-new-dtags"]
     sdl_license = build_dir / "SDL3-LICENSE.txt"
     n.build(outputs=sdl_license, rule="linux_copy", inputs=sdl_license_source)
-    return cflags, ldflags, stamp, libsdl, sdl_license
+    return cflags, ldflags, libsdl, sdl_license
 
 
 def lto_mode(sln: Any) -> str:
@@ -495,23 +550,35 @@ def generate_linux_build(n: Writer, sln: Any) -> None:
     # the high-res HUD's textures (port/assets/hud; port/linux/src/hud_hires.c)
     embedded_assets = hud_assets_build(n, "linux", build_dir / "generated" / "hud_hires_assets.c")
 
-    # the portable build's system root and SDL3, or the build machine's
+    # (the 32-bit x86 system root: the portable build draws against it, and the
+    # movies' FFmpeg is built against it either way)
+    sysroot_stamp, sysroot = linux_sysroot(n, build_dir)
+    ffmpeg_cflags, ffmpeg_libs, ffmpeg_stamp, ffmpeg_archives = linux_ffmpeg(
+        n, build_dir, cc, sysroot, sysroot_stamp)
+
+    # the portable build's SDL3, or the build machine's
     if getattr(sln, "port_portable", False):
-        sysroot_cflags, sysroot_ldflags, sysroot_stamp, libsdl, sdl_license = portable_sdl(n, sln, build_dir, cc)
-        sysroot_inputs = [sysroot_stamp]
+        sysroot_cflags, sysroot_ldflags, libsdl, sdl_license = portable_sdl(
+            n, sln, build_dir, cc, sysroot_stamp, sysroot)
         sdl_outputs = [build_dir / libsdl.name, sdl_license]
     else:
-        sysroot_cflags, sysroot_ldflags, sysroot_inputs, libsdl, sdl_outputs = [], [], [], None, []
+        sysroot_cflags, sysroot_ldflags, libsdl, sdl_outputs = [], [], None, []
+    # (what every unit waits for: the system root's stamp and the movies'
+    # FFmpeg, headers and libraries alike)
+    sysroot_inputs = [sysroot_stamp, ffmpeg_stamp, *ffmpeg_archives]
     target = [march_flag(sln), *sysroot_cflags]
 
     # (a debug build checks its stack frames, and stops at the first one
     # overrun, as it stops at the first failed assertion; a release build
     # does not, so that an overrun nobody has met cannot end a game)
     abi = " ".join(LINUX_ABI_FLAGS + target + configuration_defines(sln)
-                   + ([] if getattr(sln, "port_release", False) else ["-fstack-protector-strong"]))
+                   + ([] if getattr(sln, "port_release", False) else ["-fstack-protector-strong"])
+                   + ffmpeg_cflags)
     port_include = PORT_DIR / "include"
     sdk_flags = f"-idirafter {XDK_INCLUDE}"
+    portable = getattr(sln, "port_portable", False)
     libs = " ".join(f"-l{lib}" for lib in config.get("libraries", []))
+    libs = " ".join([libs, *ffmpeg_libs]).strip()
 
     def emit(obj_dir: Path, output: Path, extra_cflags: List[str], extra_ldflags: List[str],
              implicit_inputs: List[Path], validator: Optional[Path] = None) -> None:
