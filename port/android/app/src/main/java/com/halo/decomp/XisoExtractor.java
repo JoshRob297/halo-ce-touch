@@ -9,6 +9,7 @@ import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Copies the maps folder out of an Xbox disc image (an "xiso", or a whole
@@ -28,6 +29,12 @@ import java.util.List;
  *
  * The files are written to maps.partial first and moved into maps once they
  * all are, so an interrupted extraction never leaves maps/ui.map behind.
+ *
+ * The .bik files in the disc's bink folder (the movies) that the
+ * destination's bink folder lacks are copied after the maps, each as
+ * <name>.partial first, and never over a file already there. A disc without
+ * a bink folder, or a movie that cannot be copied, does not fail the
+ * extraction.
  *
  * Some parts of this code are copyright in@fishtank.com. This product
  * includes software developed by in &lt;in@fishtank.com&gt;.
@@ -213,6 +220,67 @@ final class XisoExtractor {
             walk(table, right, depth + 1, directories, out, visited);
     }
 
+    /* copies one file's sectors to path; returns done with its bytes added */
+    private long copyFile(Entry entry, File path, ByteBuffer buffer, long done, long total, Progress progress)
+            throws IOException {
+        long offset = partition + entry.sector * SECTOR_SIZE;
+        long remaining = entry.size;
+
+        try (FileOutputStream out = new FileOutputStream(path)) {
+            FileChannel output = out.getChannel();
+
+            while (remaining > 0) {
+                buffer.clear();
+                buffer.limit((int) Math.min(remaining, COPY_BUFFER_SIZE));
+                readAt(offset, buffer);
+                int count = buffer.remaining();
+                while (buffer.hasRemaining())
+                    output.write(buffer);
+                offset += count;
+                remaining -= count;
+                done += count;
+                progress.report(entry.name, done, total);
+            }
+        } catch (ExtractException e) {
+            throw new ExtractException("Could not read " + entry.name + " from the disc image (is it complete?).");
+        } catch (IOException e) {
+            throw new ExtractException("Could not write " + path + " (is the storage full?).");
+        }
+        return done;
+    }
+
+    /* the .bik files of the disc's bink folder that bink lacks (whatever the
+    case of their names there); none if the disc has no bink folder */
+    private List<Entry> missingMovies(List<Entry> root, File bink) throws IOException {
+        List<Entry> movies = new ArrayList<>();
+        for (Entry folder : root) {
+            if (!folder.name.equalsIgnoreCase("bink"))
+                continue;
+            ByteBuffer table;
+            try {
+                table = readDirectory(folder.sector, folder.size, "The disc image's bink folder is damaged.");
+            } catch (ExtractException e) {
+                return movies;
+            }
+            List<Entry> all = new ArrayList<>();
+            walk(table, 0, 0, false, all, new int[1]);
+            String[] present = bink.list();
+            for (Entry entry : all) {
+                if (!entry.name.toLowerCase(Locale.ROOT).endsWith(".bik"))
+                    continue;
+                boolean there = false;
+                if (present != null) {
+                    for (String name : present)
+                        there |= name.equalsIgnoreCase(entry.name);
+                }
+                if (!there)
+                    movies.add(entry);
+            }
+            break;
+        }
+        return movies;
+    }
+
     private void extract(File destination, Progress progress) throws IOException {
         long[] root = findVolume();
 
@@ -241,6 +309,11 @@ final class XisoExtractor {
         if (!hasUi)
             throw new ExtractException("The disc image's maps folder has no ui.map: it is not a Halo disc.");
 
+        File bink = new File(destination, "bink");
+        List<Entry> movies = missingMovies(directories, bink);
+        for (Entry movie : movies)
+            total += movie.size;
+
         File partial = new File(destination, "maps.partial");
         File finished = new File(destination, "maps");
         if (!partial.isDirectory() && !partial.mkdirs())
@@ -249,29 +322,8 @@ final class XisoExtractor {
         long done = 0;
         for (Entry file : files) {
             File path = new File(partial, file.name);
-            long offset = partition + file.sector * SECTOR_SIZE;
-            long remaining = file.size;
 
-            try (FileOutputStream out = new FileOutputStream(path)) {
-                FileChannel output = out.getChannel();
-
-                while (remaining > 0) {
-                    buffer.clear();
-                    buffer.limit((int) Math.min(remaining, COPY_BUFFER_SIZE));
-                    readAt(offset, buffer);
-                    int count = buffer.remaining();
-                    while (buffer.hasRemaining())
-                        output.write(buffer);
-                    offset += count;
-                    remaining -= count;
-                    done += count;
-                    progress.report(file.name, done, total);
-                }
-            } catch (ExtractException e) {
-                throw new ExtractException("Could not read " + file.name + " from the disc image (is it complete?).");
-            } catch (IOException e) {
-                throw new ExtractException("Could not write " + path + " (is the storage full?).");
-            }
+            done = copyFile(file, path, buffer, done, total, progress);
         }
 
         /* (the maps folder may be there, empty: the app makes it for adb) */
@@ -286,5 +338,22 @@ final class XisoExtractor {
                 throw new ExtractException("Could not move " + file.name + " into " + finished + ".");
         }
         partial.delete();
+
+        /* the movies, each as <name>.partial first; the maps are all there, so
+        one that cannot be copied is left out (the game plays without it) */
+        if (movies.isEmpty() || (!bink.isDirectory() && !bink.mkdirs()))
+            return;
+        for (Entry entry : movies) {
+            File from = new File(bink, entry.name + ".partial");
+            try {
+                done = copyFile(entry, from, buffer, done, total, progress);
+                File to = new File(bink, entry.name);
+                if (to.exists() || !from.renameTo(to))
+                    from.delete();
+            } catch (IOException e) {
+                from.delete();
+                return;
+            }
+        }
     }
 }
