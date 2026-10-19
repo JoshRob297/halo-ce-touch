@@ -105,6 +105,10 @@ The game can play system link games on a local network and on the internet:
   internet, browsers too: a native build takes a browser's WebRTC
   ([port/linux/README.md](port/linux/README.md), "Browsers"). No server of
   this project is necessary.
+- A copy of the game can be left running as a host on its own, on **Linux or
+  on Windows**, with a list of maps: the same build, the same settings and the
+  same netcode as a player's, and no screen, GPU or sound card needed
+  ([docs/dedicated_server.md](docs/dedicated_server.md)).
 - The netcode is new. Each machine moves its own player at once,
   and the host makes the decisions for the game. Refer to
   [port/linux/NETCODE.md](port/linux/NETCODE.md).

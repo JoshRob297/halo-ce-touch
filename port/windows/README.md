@@ -73,6 +73,39 @@ The game finds the game data as on Linux. Refer to "Start the game" in
 | Log of the port | The console. The release build has no console: `halo.log` next to `halo.exe` |
 | Crash reports | `crashes\` next to `halo.exe`, until the game sends them |
 
+## Dedicated server
+
+The Windows build is also a dedicated server, and holds the same games as the
+Linux one: the same `config.toml`, the same map list, the same listing in the
+server browser and the same netcode, so a client of either platform joins it.
+Refer to [docs/dedicated_server.md](../../docs/dedicated_server.md) for the
+settings and what it does; this section is what Windows adds.
+
+```
+cd C:\halo
+set HALO_DATA_ROOT=C:\halo
+set HALO_NULL_RENDERER=1
+set HALO_NO_AUDIO=1
+halo.exe
+```
+
+`HALO_NULL_RENDERER` and `HALO_NO_AUDIO` are the file's `debug.null_renderer`
+and `audio.enabled = false`, for a wrapper that sets no file. The release build
+has no console, so the invite link and the state the server logs go to
+`halo.log` next to `halo.exe`; the debug build writes them to the console too.
+
+The port it needs, in an elevated prompt (`network.tunnel_port`, 2302 by
+default):
+
+```
+netsh advfirewall firewall add rule name="Halo CE server" dir=in action=allow protocol=UDP localport=2302
+```
+
+To keep it running without a signed-in desktop, use a service wrapper such as
+NSSM, or a Task Scheduler task at logon with "Do not stop the task if it runs
+longer than" unchecked; a minimized console window does as well. Set the power
+plan's sleep to never for the account that runs it.
+
 ## How the port operates
 
 The game is 32-bit code, as on Linux, because its data contains 32-bit
