@@ -37,10 +37,12 @@ headless mode, and a browser tab is closed with the page.
 - A `config.toml` beside the executable with the settings below. The game writes the file
   with its defaults at the first start, and a key that is wrong is written to the log and
   left at its default.
-- A machine that stays on, and one UDP port for Internet play (`network.tunnel_port`, 2302
-  by default). The game opens it through the router by itself, so an ordinary connection
-  works; **it is one port per machine**, so two copies of the game cannot both host
-  Internet play on one machine.
+- A machine that stays on, and one UDP port for Internet play: set `network.tunnel_port`
+  to a fixed one (2302 below), so that the firewall's rule and the router's forward name
+  it; 0 (the default) lets the game pick a different port at each start. The game asks the
+  router to forward it by itself (UPnP), so an ordinary connection works; **it is one port
+  per machine**, so two copies of the game cannot both host Internet play on one
+  machine.
 
 ## The settings
 
@@ -88,6 +90,10 @@ enabled = false
 # the name its listing shows in everyone's server browser (32 bytes at most in
 # the browser; the in-game lobby shows 15 characters)
 server_name = "Joces ESMX 24/7"
+
+# the UDP port internet play uses: a fixed one, so the firewall rule and the
+# router's forward name it (0 lets the game pick one at each start)
+tunnel_port = 2302
 
 [display]
 # tell the players, in the chat area, how much of the game is left and the
