@@ -1721,7 +1721,7 @@ static void brokers_list(char *text, size_t size)
 
 		(void)name, (void)path, (void)file, (void)file_size, (void)index, (void)length, (void)comment;
 		snprintf(text, size, "%s", page && *page ? page :
-			"wss://broker.emqx.io:8084/mqtt,wss://broker.hivemq.com:8884/mqtt,wss://test.mosquitto.org:8081/mqtt");
+			"wss://broker.emqx.io:8084/mqtt,wss://broker.hivemq.com:8884/mqtt,wss://mqtt.joces.org/mqtt");
 		return;
 	}
 #endif

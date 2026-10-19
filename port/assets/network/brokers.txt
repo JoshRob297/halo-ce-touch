@@ -6,7 +6,10 @@
 # update replaces it; keep a list of your own under another name. The web
 # build reaches the last three over their secure WebSockets:
 # port/linux/src/p2p_signal.c.)
+# (mqtt.joces.org is a player's own broker, run for the game: anonymous like
+# the rest, kept to this protocol's topics, and with the WebSocket endpoint
+# the web build needs.)
 opence.milenko.org:1883
 broker.emqx.io:1883
 broker.hivemq.com:1883
-test.mosquitto.org:1883
+mqtt.joces.org:1883
