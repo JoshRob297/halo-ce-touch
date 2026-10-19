@@ -15,6 +15,11 @@ Windows, Android and web browsers. The decompilation is of the Xbox build 2342
 > version 32 and takes clients of 31 and 32. The build, the settings and what to
 > expect are in [docs/dedicated_server.md](docs/dedicated_server.md).
 >
+> Releases: `build-<n>` is the rolling one the game's own updater reads;
+> [`server-netcode-32`](https://github.com/JoshRob297/halo-ce-touch/releases/tag/server-netcode-32)
+> is the stable server build for network version 32 (Linux and Windows, with
+> `SHA256SUMS`).
+>
 > Branches: `main` (this server), `opence-movies` (the disc's movies behind the
 > `Bink*` API, not offered upstream yet). The rest of the work, and the history
 > this fork had before, is kept in tags: `git tag -l 'archive/*'`. Everything
