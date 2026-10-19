@@ -957,7 +957,9 @@ real one, and `debug.network_test_countdown` shortens the countdown a host
 gives its lobby (0: the game's own, 31 seconds), so that a rotation of short
 games is not waited out. `debug.network_test_start` is how long the host waits
 before starting the game by force, when no countdown starts it and there is a
-player in it. `debug.network_test_public` lists the host's
+player in it. A host left running as a dedicated server, with a list of maps,
+is [docs/dedicated_server.md](../docs/dedicated_server.md) (Linux and Windows).
+`debug.network_test_public` lists the host's
 game in the server browser, and `browse` joins the one listed there with the
 most players (not co-op, if it can), as the server browser does
 (port/web/tests/internet.mjs plays the native build and browsers so).

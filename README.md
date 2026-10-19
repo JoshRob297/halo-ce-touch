@@ -78,6 +78,8 @@ The Arch-based distribution release is available on the [AUR](https://aur.archli
 - **Supports up to 128 players** on up to 128 machines and up to 4 players on each device in split screen.
 - **Every platform plays together:** Windows, Linux, Android and the browser all support cross-play! On a local network, the native builds can play LAN. Browser players can play each other in rooms over WebRTC ([port/web/README.md](port/web/README.md)).
 - **Peer-to-peer internet hosting:** join through the server browser or an invite link. A host lists a game as public in the server browser, or keeps it private for players with the invite link. With the Discord integration, the host can also send the invite through Discord.
+
+- **A dedicated host:** a copy of the game left running on its own, on Linux or on Windows, with a list of maps that it hosts and rotates by itself. No screen, GPU or sound card needed. Refer to [docs/dedicated_server.md](docs/dedicated_server.md).
 - **Online co-op campaign:** with settings for friendly fire, player collisions and the number of enemies as a multiplier based on per player or static. 
 - **New gametypes:** SWAT, Infection, Gun Game and Hardcore (Slayer, CTF, Oddball and King), in Select Gametype's OPENCE bank; Edit Gametypes' OPENCE OPTIONS gives any gametype their rules ([port/linux/README.md](port/linux/README.md), "OpenCE gametypes").
 - **Voice Chat:** push to talk (V) or an open microphone (can be changed in the menu's audio settings)
