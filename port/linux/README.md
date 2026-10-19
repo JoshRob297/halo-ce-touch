@@ -619,7 +619,9 @@ host has no `network.address`, do not give `--host`.
 ## Internet play
 
 Machines with an invite link can play system link on the internet. This
-project has no server.
+project has no server. A copy of the game can be left running as a host for
+everyone, hosting a list of maps on its own: refer to
+[docs/dedicated_server.md](../../docs/dedicated_server.md).
 
 When a copy of the game starts to host a system link game, it makes an
 invite link: `halo://join/<64 hexadecimal digits>`. The game writes the link
