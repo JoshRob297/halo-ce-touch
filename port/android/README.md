@@ -75,7 +75,9 @@ of the whole `save` folder stops there.
 ## Game data
 
 The game needs the `maps/` folder from an Xbox disc image (`.xiso` or
-`.iso`) of any version of the game. The app extracts `maps/` from the disc
+`.iso`) of any version of the game, and takes the `.bik` movies of the disc's
+`bink` folder with it (into `bink/`; a movie that cannot be copied does not
+fail the extraction). The app extracts `maps/` from the disc
 image. The app keeps the data in `/sdcard/Android/data/com.halo.decomp/files`.
 
 To install the data with the app:

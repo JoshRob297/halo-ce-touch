@@ -111,7 +111,10 @@ If the game finds no data, it asks for an Xbox disc image (`.xiso` or
 
 - Select "No" to stop the game.
 - Select "Yes" to open a file picker. Select the disc image. The game copies
-  `maps/` next to the executable and shows the progress.
+  the disc's `maps/` folder next to the executable, and the `.bik` movies of
+  the disc's `bink` folder that the data lacks into `bink/` (where the game
+  reads `d:\bink\<name>.bik`; a movie that cannot be copied does not fail
+  the copy), and shows the progress.
 
 The game writes the copy to `maps.partial`. When the copy is complete, the
 game changes the name to `maps`. If the copy stops before it is complete,
