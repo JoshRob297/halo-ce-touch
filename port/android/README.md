@@ -478,7 +478,7 @@ assembly of the port is necessary:
 
 ## Limits
 
-- Bink video is not available. The game skips the movies.
+- Bink video plays: the game's own entry points (`port/linux/src/bink_ffmpeg.c`) decode the movies with FFmpeg, which `tools/android_ffmpeg.py` builds for the guest (LGPL, no GPL parts). A movie the data lacks is skipped, as before.
 - The device must let the app reserve the fixed guest addresses, from
   `0x80000000` to `0x8c000000`. If ART uses them, the app shows a message
   (refer to "The fixed addresses").
