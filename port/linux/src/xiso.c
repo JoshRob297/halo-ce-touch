@@ -1,8 +1,9 @@
 /*
 XISO.C
 
-Copies the maps folder out of an Xbox disc image (an "xiso"), for the
-desktop ports' first start without game data (sdl_platform.c).
+Copies the maps folder, and the Bink movies, out of an Xbox disc image (an
+"xiso"), for the desktop ports' first start without game data
+(sdl_platform.c).
 
 The image's file system is XDVDFS, read as extract-xiso does
 (https://github.com/XboxDev/extract-xiso, extract-xiso.c, whose format
@@ -18,6 +19,14 @@ put the game partition further in, at one of the offsets below.
 The files are written to <destination>/maps.partial first, which becomes
 <destination>/maps once they all are, so an interrupted extraction never
 leaves a maps folder that looks complete.
+
+The disc's bink folder holds the movies (intro.bik, credits.bik, attract1.bik
+to attract3.bik, and one more of each per language on some discs). Each .bik
+file the destination's bink folder lacks is copied there, after the maps,
+under the disc's name: the game looks for d:\bink\<name>.bik, and finds it
+whatever the case. A file already there is never replaced. A disc without a
+bink folder, or a movie that cannot be copied, does not fail the extraction:
+the game skips movies it cannot find.
 
 Some parts of this code are copyright in@fishtank.com. This product
 includes software developed by in <in@fishtank.com>.
@@ -273,6 +282,21 @@ static int names_match(const char *a, const char *b)
 	return !*a && !*b;
 }
 
+static int name_has_ending(const char *name, const char *ending)
+{
+	size_t length = strlen(name), ending_length = strlen(ending);
+
+	return length >= ending_length && names_match(name + length - ending_length, ending);
+}
+
+/* whether <directory>/<name> exists, whatever the case of its name */
+static int file_exists(const char *directory, const char *name)
+{
+	char found[256];
+
+	return posix_find_entry_case_insensitive(directory, name, found, sizeof(found)) != 0;
+}
+
 static int copy_file(struct xiso_image *image, const struct xiso_file *file, const char *path,
 	unsigned char *buffer, unsigned long long *done, unsigned long long total,
 	xiso_progress_proc progress, void *context)
@@ -320,12 +344,13 @@ int xiso_extract_maps(const char *image_path, const char *destination, xiso_prog
 	char *error, int error_size)
 {
 	struct xiso_image image;
-	struct xiso_file *entries = NULL;
-	unsigned char *table = NULL;
+	struct xiso_file *entries = NULL, *movies = NULL;
+	unsigned char *table = NULL, *movie_table = NULL;
 	unsigned char *buffer = NULL;
 	unsigned long root_sector, root_size;
 	unsigned long long total = 0, done = 0;
 	char partial[1024], final[1024], path[1300];
+	int movie_count = 0;
 	int result = 0;
 	int index;
 
@@ -335,8 +360,9 @@ int xiso_extract_maps(const char *image_path, const char *destination, xiso_prog
 	if (image.descriptor < 0)
 		return fail(&image, "Could not open %s.", image_path);
 	entries = calloc(MAXIMUM_FILES, sizeof(*entries));
+	movies = calloc(MAXIMUM_FILES, sizeof(*movies));
 	buffer = malloc(COPY_BUFFER_SIZE);
-	if (!entries || !buffer)
+	if (!entries || !movies || !buffer)
 	{
 		fail(&image, "Out of memory.%s", NULL);
 		goto done;
@@ -353,15 +379,44 @@ int xiso_extract_maps(const char *image_path, const char *destination, xiso_prog
 	}
 	{
 		struct directory_walk walk = { table, root_size, entries, 0, MAXIMUM_FILES, 0, 1 };
+		int maps_index = -1, bink_index = -1;
 
 		walk_directory(&walk, 0, 0);
-		for (index = 0; index < walk.entry_count && !names_match(entries[index].name, "maps"); index++)
-			;
-		if (index == walk.entry_count)
+		for (index = 0; index < walk.entry_count; index++)
+		{
+			if (names_match(entries[index].name, "maps"))
+				maps_index = index;
+			else if (names_match(entries[index].name, "bink"))
+				bink_index = index;
+		}
+		if (maps_index < 0)
 		{
 			fail(&image, "The disc image has no maps folder: it is not a Halo disc.%s", NULL);
 			goto done;
 		}
+		/* the movies: its bink folder's .bik files that the destination
+		lacks, read now, while the root's entries are still here (a disc
+		without one, and every movie already there, leaves this empty) */
+		if (bink_index >= 0)
+		{
+			movie_table = read_directory(&image, entries[bink_index].sector, entries[bink_index].size);
+			if (movie_table)
+			{
+				struct directory_walk movies_walk = { movie_table, entries[bink_index].size, movies,
+					0, MAXIMUM_FILES, 0, 0 };
+				char folder[1024];
+				int movie;
+
+				walk_directory(&movies_walk, 0, 0);
+				snprintf(folder, sizeof(folder), "%s/bink", destination);
+				for (movie = 0; movie < movies_walk.entry_count; movie++)
+				{
+					if (name_has_ending(movies[movie].name, ".bik") && !file_exists(folder, movies[movie].name))
+						movies[movie_count++] = movies[movie];
+				}
+			}
+		}
+		index = maps_index;
 		free(table);
 		table = read_directory(&image, entries[index].sector, entries[index].size);
 		if (!table)
@@ -383,6 +438,8 @@ int xiso_extract_maps(const char *image_path, const char *destination, xiso_prog
 			total += entries[index].size;
 			has_ui |= names_match(entries[index].name, "ui.map");
 		}
+		for (index = 0; index < movie_count; index++)
+			total += movies[index].size;
 		if (!has_ui)
 		{
 			fail(&image, "The disc image's maps folder has no ui.map: it is not a Halo disc.%s", NULL);
@@ -404,12 +461,36 @@ int xiso_extract_maps(const char *image_path, const char *destination, xiso_prog
 			goto done;
 		}
 	}
+
+	/* the movies, each as <name>.partial first, so a copy that stops never
+	leaves a short file the next start would take for the movie. The maps are
+	all there: one that cannot be copied does not fail the extraction */
+	if (movie_count)
+	{
+		snprintf(final, sizeof(final), "%s/bink", destination);
+		posix_make_directory(final);
+	}
+	for (index = 0; index < movie_count; index++)
+	{
+		snprintf(partial, sizeof(partial), "%s/%s.partial", final, movies[index].name);
+		snprintf(path, sizeof(path), "%s/%s", final, movies[index].name);
+		platform_log("extracting bink/%s (%lu bytes)", movies[index].name, movies[index].size);
+		if (!copy_file(&image, &movies[index], partial, buffer, &done, total, progress, context) ||
+			rename(partial, path) != 0)
+		{
+			platform_log("could not copy bink/%s; the game skips it", movies[index].name);
+			unlink(partial);
+			break;
+		}
+	}
 	result = 1;
 
 done:
 	close(image.descriptor);
 	free(table);
+	free(movie_table);
 	free(entries);
+	free(movies);
 	free(buffer);
 	return result;
 }
