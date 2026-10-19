@@ -1161,6 +1161,33 @@ void network_test_update(
 	if (network_test.mode == _network_test_off)
 		return;
 
+	/* port: a dedicated host whose players have all left closes the game it is
+	in (postgame, then its lobby again and its map list on, NETCODE.md), where
+	an empty game would run out its clock with nobody in it. This is above the
+	return below, which stops the rest of the update in a game (main_menu_loaded
+	is false there), and the seconds are a grace: a connection that comes back
+	inside them keeps the game it was in. A host that plays as a player of its
+	own is the game's business and is left alone */
+	if (network_test.mode == _network_test_host && network_test.set_up &&
+		!network_test.add_player && game_engine_running())
+	{
+		struct network_game_server *empty_server = global_network_game_server_get();
+
+		if (empty_server && network_game_server_port_player_count(empty_server) <= 0)
+		{
+			network_test.empty_seconds += seconds;
+			if (network_test.empty_seconds >= 15.0f)
+			{
+				network_game_server_port_end_game(empty_server);
+				network_test.empty_seconds = 0.0f;
+			}
+		}
+		else
+		{
+			network_test.empty_seconds = 0.0f;
+		}
+	}
+
 	/* port: a host nobody watches leaves no trace of what it is doing, and a
 	dedicated host has no screen to show a clock on: its state, and how much
 	of the game it is running is left, go to the engine's log every five
@@ -1773,27 +1800,6 @@ void network_test_update(
 
 				if (game_engine_running())
 				{
-					/* port: a dedicated host whose players have all left closes
-					the game it is in (postgame, then its lobby again and its map
-					list on, NETCODE.md), where an empty game would run out its
-					clock with nobody in it. The seconds are a grace: a connection
-					that comes back inside them keeps the game it was in. A host
-					that plays as a player of its own is the game's business and is
-					left alone */
-					if (!network_test.add_player && server &&
-						network_game_server_port_player_count(server) <= 0)
-					{
-						network_test.empty_seconds += seconds;
-						if (network_test.empty_seconds >= 15.0f)
-						{
-							network_game_server_port_end_game(server);
-							network_test.empty_seconds = 0.0f;
-						}
-					}
-					else
-					{
-						network_test.empty_seconds = 0.0f;
-					}
 					network_test.started = TRUE;
 					platform_log("network test: game is now running");
 				}
