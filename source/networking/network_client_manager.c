@@ -3262,10 +3262,10 @@ the system link list does (network_game_join_game_from_server_list) */
 void platform_show_message(char const *title, char const *message);
 
 /* whether this client can join the advertised game: its host's network
-version is this machine's (HALO_PORT_NETWORK_VERSION), and it plays the
-distributed netcode (a host of this version built before the lockstep
-netcode was removed may play that). If not the player is told why (when
-tell), and nothing is joined. */
+version is one this build plays (HALO_PORT_NETWORK_VERSION_MINIMUM to
+HALO_PORT_NETWORK_VERSION_MAXIMUM), and it plays the distributed netcode (a
+host of this version built before the lockstep netcode was removed may play
+that). If not the player is told why (when tell), and nothing is joined. */
 boolean network_game_client_advertised_game_compatible(
 	struct network_game_client *client,
 	struct network_advertised_game const *game,
@@ -3273,6 +3273,8 @@ boolean network_game_client_advertised_game_compatible(
 {
 	long game_index = client ? game - client->available_games : NONE;
 	unsigned int ours = HALO_PORT_NETWORK_VERSION;
+	unsigned int oldest = HALO_PORT_NETWORK_VERSION_MINIMUM;
+	unsigned int newest = HALO_PORT_NETWORK_VERSION_MAXIMUM;
 	unsigned int theirs;
 	boolean distributed;
 
@@ -3281,11 +3283,12 @@ boolean network_game_client_advertised_game_compatible(
 	theirs = network_game_client_advertised_versions[game_index].version;
 	distributed = (network_game_client_advertised_versions[game_index].flags &
 		HALO_PORT_ADVERTISED_DISTRIBUTED_FLAG) != 0;
-	if (theirs == ours && distributed)
+	if (theirs >= oldest && theirs <= newest && distributed)
 	{
-		network_event("joining a host of network version %u", theirs);
+		network_event("joining a host of network version %u (this machine's is %u)", theirs, ours);
 		return TRUE;
 	}
+<<<<<<< HEAD
 	if (tell)
 		network_game_client_tell_version(theirs, distributed);
 	return FALSE;
@@ -3301,12 +3304,15 @@ void network_game_client_tell_version(
 	char message[400];
 
 	if (theirs == ours)
+=======
+	if (theirs >= oldest && theirs <= newest)
+>>>>>>> b5070e13f (Netcode: a client joins the versions whose messages it already drops)
 	{
 		csprintf(message,
 			"The host is using the lockstep network code, which this version no longer has.\n\n"
 			"Ask the host to update the game.");
 	}
-	else if (theirs > ours)
+	else if (theirs > newest)
 	{
 		csprintf(message,
 			"The host is using a newer version of the network code than you.\n\n"

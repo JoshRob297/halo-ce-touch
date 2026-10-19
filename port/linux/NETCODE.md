@@ -173,10 +173,20 @@ The native builds' network code has a version, an unsigned 16-bit number
 (`HALO_PORT_NETWORK_VERSION` in `port/linux/include/halo_port_limits.h`),
 raised with any change to what the machines send each other. A host puts it
 in its game's advertisement (reserved bytes that hosts built before there
-was a version send as zeros, so they are version 0). A client does not join
-a host of another version: it shows a message box that says which of the
-two is newer, with both versions ("update the game" or "ask the host to
-update"), and stays in the list of games. Version 1 was the first of this
+was a version send as zeros, so they are version 0). A client joins a host
+whose version is in `HALO_PORT_NETWORK_VERSION_MINIMUM` to
+`HALO_PORT_NETWORK_VERSION_MAXIMUM`: its own, and those that differ from it
+only in what the other machine drops (a kind of message a machine of the
+other version does not know, which `network_distributed.c` drops whole, or a
+field of a message it does not read). The oldest this build joins is 31,
+which moved the begin game, graceful exit and keep-alive field lists to
+their own messages: 31 and 32 play together (32's aim assist policy is a new
+kind, which a 31 drops, and its friendly fire is a padding byte of a
+client's input, which a 31 ignores). A host of a version outside the range
+is shown with which of the two is newer, with both versions ("update the
+game" or "ask the host to update"), and stays in the list of games. A host
+never checks a client's version: the client does, so the range is the
+client's. Version 1 was the first of this
 netcode; version 2 lets a machine join a game in progress; version 3 puts
 each player in its slot of the host's player list on every machine;
 version 4 plays the European (PAL) maps as the North American ones
