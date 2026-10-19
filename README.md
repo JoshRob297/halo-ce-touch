@@ -7,6 +7,19 @@ Windows, Android and web browsers. The decompilation is of the Xbox build 2342
 (`cachebeta.exe`, SHA-256
 `4cc87b45f721270392a96f1674ed2b5cd4a7bb4355faeab4531d1cf1884d9520`).
 
+> **This fork is the dedicated server.** `main` here is
+> [OpenCE](https://github.com/OpenCommunityEdition/OpenCE) with the dedicated
+> host carried on top: a copy of the game that holds a list of maps on its own,
+> with no screen, no GPU and no sound card, on **Linux and Windows** from the
+> same `config.toml`, and a client of either platform joins it. It is network
+> version 32 and takes clients of 31 and 32. The build, the settings and what to
+> expect are in [docs/dedicated_server.md](docs/dedicated_server.md).
+>
+> Branches: `main` (this server), `opence-movies` (the disc's movies behind the
+> `Bink*` API, not offered upstream yet). The rest of the work, and the history
+> this fork had before, is kept in tags: `git tag -l 'archive/*'`. Everything
+> else here is upstream's, and this fork follows its `main`.
+
 <img width="1289" height="995" alt="The game on Linux" src="https://github.com/user-attachments/assets/0d3ad50f-f8b8-46cf-aef8-e3661da2a7d7" />
 
 The port starts from the decompilation of [bnunu/halo-1](https://github.com/bnunu/halo-1).
