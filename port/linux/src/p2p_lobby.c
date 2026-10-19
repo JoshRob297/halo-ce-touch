@@ -751,12 +751,14 @@ static void update_browsing(void)
 		/* (a newer version's game is counted, not shown: its host's key
 		hash only, unverified, so it is no more than a count) */
 		if (lobby.browsing && listing_read(queued.payload, queued.size, &listing) &&
-			listing.version > HALO_PORT_NETWORK_VERSION && !(listing.flags & _listing_closed))
+			listing.version > HALO_PORT_NETWORK_VERSION_MAXIMUM && !(listing.flags & _listing_closed))
 		{
 			newer_heard(queued.key_hash);
 			continue;
 		}
-		if (!listing_read(queued.payload, queued.size, &listing) || listing.version != HALO_PORT_NETWORK_VERSION ||
+		if (!listing_read(queued.payload, queued.size, &listing) ||
+			listing.version < HALO_PORT_NETWORK_VERSION_MINIMUM ||
+			listing.version > HALO_PORT_NETWORK_VERSION_MAXIMUM ||
 			!signing_key_hash(listing.key, key_hash) || memcmp(key_hash, queued.key_hash, P2P_KEY_HASH_SIZE))
 		{
 			continue;
