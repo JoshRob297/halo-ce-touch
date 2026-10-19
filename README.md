@@ -10,6 +10,14 @@
   <a href="https://halocombatevolved.com/"><img src="https://img.shields.io/badge/Play-in_browser-blue?style=for-the-badge" alt="Play in browser"></a>
   <a href="https://discord.gg/9gqcHyr5km"><img src="https://img.shields.io/badge/Discord-join-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Discord"></a>
 </p>
+> **This fork carries the dedicated server.** `main` here is
+> [OpenCE](https://github.com/OpenCommunityEdition/OpenCE) with the dedicated
+> host carried on top: a copy of the game that holds a list of maps on its own,
+> with no screen, no GPU and no sound card, on **Linux and Windows** from the
+> same `config.toml`, and a client of either platform joins it. It is network
+> version 38. The build, the settings and what to expect are in
+> [docs/dedicated_server.md](docs/dedicated_server.md).
+>
 
 **OpenCE** (Open Community Edition) is an open source port of the Halo: Combat Evolved decompilation (Halo CE) based on an early Xbox development build (2342) and forked from
 [bnunu/halo-1](https://github.com/bnunu/halo-1). The project aims to enhance the existing game and adds many features, such as 128-player multiplayer, online campaign co-op, mod packs, field-of-view settings, a server browser, peer-to-peer hosting, automatic map downloads, voice chat, support for Custom Edition maps and much more! 
