@@ -94,8 +94,8 @@ and `audio.enabled = false`, for a wrapper that sets no file. The release build
 has no console, so the invite link and the state the server logs go to
 `halo.log` next to `halo.exe`; the debug build writes them to the console too.
 
-The port it needs, in an elevated prompt (`network.tunnel_port`, 2302 by
-default):
+The port it needs, in an elevated prompt (the fixed `network.tunnel_port` of
+`config.toml`; 2302 in the settings above):
 
 ```
 netsh advfirewall firewall add rule name="Halo CE server" dir=in action=allow protocol=UDP localport=2302
