@@ -60,13 +60,25 @@ protocol version and never see the Xbox game's, or it theirs. */
 #define HALO_PORT_NETWORK_GAME_MESSAGE_VERSION 2
 
 /* The native builds' network code has a version of its own (an unsigned
-16-bit number): machines of different versions cannot play together, and a
-client does not join a host of another version, but tells the player which
-is newer (network_client_manager.c). A host advertises it, with its netcode,
-in its game's advertisement's reserved bytes (network_server_message_handler.c),
-which hosts built before there was a version send as zeros: version 0.
+16-bit number): a client joins a host of a version in the range below, and
+tells the player which is newer when it does not (network_client_manager.c).
+A host advertises it, with its netcode, in its game's advertisement's
+reserved bytes (network_server_message_handler.c), which hosts built before
+there was a version send as zeros: version 0.
 Raise it with any change to what the machines send each other. */
-#define HALO_PORT_NETWORK_VERSION 29
+#define HALO_PORT_NETWORK_VERSION 32
+/* ... the versions a client joins: its own, and those that differ from it
+only in what the other machine drops (a message of a kind it does not know,
+or a field of a message it does not read: network_distributed.c drops an
+unknown kind whole). Version 31 is the oldest this build plays: it moved the
+begin game, graceful exit and keep-alive field lists to their own messages,
+so a 30 and a 31 would read each other's messages as another kind. 32 added
+one kind (the aim assist policy, which a 31 drops) and used a padding byte of
+a client's input (which a 31 ignores), so 31 and 32 play together. A host
+never checks a client's version: the client does, so the range is the
+client's. */
+#define HALO_PORT_NETWORK_VERSION_MINIMUM 31
+#define HALO_PORT_NETWORK_VERSION_MAXIMUM 32
 /* ... the advertisement's reserved bytes: the version (a little-endian word),
 then flags */
 #define HALO_PORT_ADVERTISED_VERSION_OFFSET 0
