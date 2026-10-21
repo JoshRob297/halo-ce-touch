@@ -13,6 +13,8 @@ of by the driver's text ("auto" asks the driver).
 /* called once the GL context exists, with the driver's own strings */
 void gpu_profile_initialize(char const *vendor, char const *renderer, char const *version);
 char const *gpu_profile_name(void);
+/* "native", or the display.driver name asked for */
+char const *gpu_profile_driver(void);
 /* draws between pipeline flushes: 0 for none (GPU_PROFILE_INTEL's 3) */
 long gpu_profile_flush_draws(void);
 /* read the visibility tests' results on the CPU (GPU_PROFILE_AMD's driver

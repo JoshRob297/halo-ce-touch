@@ -43,6 +43,7 @@ static struct
 	char version[96];
 	long flush_draws;
 	int cpu_visibility;
+	char driver[24];
 } gpu_profile;
 
 static int text_has(char const *text, char const *needle)
@@ -98,6 +99,11 @@ void gpu_profile_initialize(char const *vendor, char const *renderer, char const
 	snprintf(gpu_profile.renderer, sizeof(gpu_profile.renderer), "%s", renderer ? renderer : "?");
 	snprintf(gpu_profile.version, sizeof(gpu_profile.version), "%s", version ? version : "?");
 	chosen = config_string("display.gpu_profile");
+	{
+		char const *driver = config_string("display.driver");
+		snprintf(gpu_profile.driver, sizeof(gpu_profile.driver), "%s",
+			(driver && driver[0]) ? driver : "native");
+	}
 	profile = profile_from_name(chosen);
 	if (profile < 0)
 		profile = profile_classify(gpu_profile.vendor, gpu_profile.renderer);
@@ -113,6 +119,11 @@ void gpu_profile_initialize(char const *vendor, char const *renderer, char const
 char const *gpu_profile_name(void)
 {
 	return gpu_profile.initialized ? profile_names[gpu_profile.profile] : "unknown";
+}
+
+char const *gpu_profile_driver(void)
+{
+	return gpu_profile.initialized ? gpu_profile.driver : "native";
 }
 
 long gpu_profile_flush_draws(void)

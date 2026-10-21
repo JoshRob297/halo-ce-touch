@@ -187,6 +187,10 @@ static const struct config_setting config_settings[] =
 		_environment_value, _platform_all,
 		"The scoreboard panel's colour: \"red, green, blue, alpha\", each 0 to 255\n"
 		"(alpha 0 is see-through, 255 solid)." },
+	{ "display.stats", _config_boolean, "false", "HALO_DISPLAY_STATS", _environment_set_is_true, _platform_all,
+		"Show the frame rate counter and, above it, the game's mode (Slayer, CTF,\n"
+		"Infection, ...) and the GPU profile and driver the renderer chose. Useful\n"
+		"in a screenshot of a graphics bug; off by default." },
 	{ "display.geometry_cache", _config_string, "\"auto\"", "HALO_GEOMETRY_CACHE", _environment_value, _platform_all,
 		"Whether vertices and indices are kept in persistent GL buffers, by\n"
 		"address, or uploaded as they are drawn: \"auto\" keeps them on the desktop\n"
