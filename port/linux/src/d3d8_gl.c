@@ -38,6 +38,10 @@ Conventions carried over from the Xbox:
 void d3d8_surface_initialize(D3DSurface *surface, D3DFORMAT format, unsigned long width, unsigned long height);
 void d3d8_surface_resize(D3DSurface *surface, D3DFORMAT format, unsigned long width, unsigned long height);
 
+/* port/linux/game/stats_overlay.c: display.stats's line and display.stats_log's,
+which name the renderer the driver reports */
+void stats_overlay_set_renderer(const char *vendor, const char *renderer);
+
 #ifdef HALO_GLES
 /* OpenGL ES 3 (port/android/README.md): the desktop formats, enumerants
 and entry points used below that ES lacks */
@@ -2012,6 +2016,8 @@ static void gl_initialize(void)
 	}
 	xgpu_gl_state_invalidate();
 	device.gl_ready = TRUE;
+	/* display.stats's line and display.stats_log's: the driver's own text */
+	stats_overlay_set_renderer((const char *)glGetString(GL_VENDOR), (const char *)glGetString(GL_RENDERER));
 	if (anti_aliasing_value < 0)
 		anti_aliasing_read();
 	else
