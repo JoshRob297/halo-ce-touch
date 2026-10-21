@@ -191,6 +191,10 @@ static const struct config_setting config_settings[] =
 		"Show the frame rate counter and, above it, the game's mode (Slayer, CTF,\n"
 		"Infection, ...) and the GPU profile and driver the renderer chose. Useful\n"
 		"in a screenshot of a graphics bug; off by default." },
+	{ "display.stats_log", _config_boolean, "false", "HALO_STATS_LOG", _environment_set_is_true, _platform_all,
+		"With display.stats, a line a second in the log with the frame rate, the\n"
+		"mode, the map, the GPU profile, the driver, the geometry cache's setting\n"
+		"and the 3D view's size, to compare two runs off the screen. Off by default." },
 	{ "display.geometry_cache", _config_string, "\"auto\"", "HALO_GEOMETRY_CACHE", _environment_value, _platform_all,
 		"Whether vertices and indices are kept in persistent GL buffers, by\n"
 		"address, or uploaded as they are drawn: \"auto\" keeps them on the desktop\n"
