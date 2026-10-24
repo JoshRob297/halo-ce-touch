@@ -297,6 +297,7 @@ static void network_test_read_settings(
 	void)
 {
 	char const *setting = config_string("debug.network_test");
+	char *colon;
 
 	network_test.checked = TRUE;
 	if (!strncmp(setting, "host:", 5) && setting[5])
