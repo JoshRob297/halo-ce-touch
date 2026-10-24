@@ -206,9 +206,9 @@ machines 1, a player on each 1, teams 1, players 2 of 1, all pre-cached 1
 A client joins a host whose network version is in its range
 (`HALO_PORT_NETWORK_VERSION_MINIMUM` to `HALO_PORT_NETWORK_VERSION_MAXIMUM`): its own,
 and those that differ from it only in what the other machine drops. In this build the
-range is 31 to 32, so a client of 31 or 32 joins it, and one of 30 or older does not
+range is 38 alone, so a client of 38 joins it and one of another version does not
 (`port/linux/NETCODE.md`, "Versions"). The range is the client's: a host never checks a
-client's version, so a server of this build takes a 31 client as well as a 32 one, and an
+client's version, and an
 old client that only knows its own version refuses a newer host until it is updated. A
 machine that joins in the middle of a game plays it from where it is, and a machine that
 joins the lobby is counted for the next one.
