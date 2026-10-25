@@ -237,6 +237,27 @@ jobs:
       - name: Release
         run: python tools/ci_build.py windows release
 
+      - name: Headless smoke test
+        run: |
+          mkdir -p "$RUNNER_TEMP/halo-smoke"
+          cd "$RUNNER_TEMP/halo-smoke"
+          SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy \
+          HALO_NETWORK_TEST="host:bloodgulch:slayer" \
+          HALO_EXIT_AFTER=10 \
+          "$GITHUB_WORKSPACE/dist/halo-windows-debug/halo.exe" > smoke.log 2>&1 || true
+          cat smoke.log
+          if grep -Fq "SDL_Init failed" smoke.log; then
+            fail_line=$(grep -F "SDL_Init failed" smoke.log | head -n 1)
+            echo "headless SDL_Init failed on Windows: $fail_line" >&2
+            exit 1
+          fi
+          if ! grep -Fq "maps folder:" smoke.log; then
+            echo "maps folder check missing from smoke log:" >&2
+            cat smoke.log >&2
+            exit 1
+          fi
+          echo "headless smoke test: SDL initialised, the run reached the data check"
+
       - name: Test light storage
         run: python tools/test_light_storage.py
 
