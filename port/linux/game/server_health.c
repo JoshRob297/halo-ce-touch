@@ -33,25 +33,16 @@ answer, and the endpoint is simply off.) */
 #include "networking/network_server_manager.h"
 #include "tag_files/tag_files.h"
 #include "game/game_engine_list.h"
+#include "server_web.h"
 
 #define HALO_LINUX_WINSOCK_NAMES_UNDEFINE
 #include "halo_linux_winsock_names.h"
 #undef HALO_LINUX_WINSOCK_NAMES_UNDEFINE
 
 int p2p_hosting_listed(void);
+int p2p_invite_link(char *link, int size);
+char const *config_string(char const *name);
 unsigned long system_milliseconds(void);
-
-struct server_health_snapshot
-{
-	int state; /* 0: pregame, 1: in_game, 2: postgame, -1: no_server */
-	char map[64];
-	char variant[64];
-	int players;
-	int max_players;
-	int minutes_left;
-	boolean listed;
-	unsigned long uptime_seconds;
-};
 
 static struct
 {
@@ -72,16 +63,17 @@ static struct
 
 static void server_health_handle_connection(int client_fd)
 {
-	char buffer[1024];
+	char *buffer;
 	ssize_t received;
 	struct pollfd pfd;
 	int poll_res;
 	char method[16];
 	char path[256];
-	char response[1024];
 	int response_length;
 	struct server_health_snapshot snap;
 	boolean head_only;
+
+	platform_log("server_health: enter handle_connection fd=%d", client_fd);
 
 	pfd.fd = client_fd;
 	pfd.events = POLLIN;
@@ -95,9 +87,17 @@ static void server_health_handle_connection(int client_fd)
 		return;
 	}
 
-	received = recv(client_fd, buffer, sizeof(buffer) - 1, 0);
+	buffer = (char *)malloc(1024);
+	if (!buffer)
+	{
+		close(client_fd);
+		return;
+	}
+
+	received = recv(client_fd, buffer, 1023, 0);
 	if (received <= 0)
 	{
+		free(buffer);
 		close(client_fd);
 		return;
 	}
@@ -107,16 +107,27 @@ static void server_health_handle_connection(int client_fd)
 	path[0] = '\0';
 	if (sscanf(buffer, "%15s %255s", method, path) != 2)
 	{
+		free(buffer);
 		close(client_fd);
 		return;
 	}
 	/* (HEAD sends the headers alone, its body left out, as a monitor asks) */
 	head_only = strcmp(method, "HEAD") == 0;
 
+	/* Web dashboard and REST API dispatch */
+	if (server_web_dispatch(client_fd, method, path, buffer, (int)received))
+	{
+		platform_log("server_health: exit web_dispatch fd=%d", client_fd);
+		free(buffer);
+		close(client_fd);
+		return;
+	}
+
 	if ((strcmp(method, "GET") == 0 || strcmp(method, "HEAD") == 0) && strcmp(path, "/health") == 0)
 	{
 		char const *state_str = "no_server";
 		char json_body[512];
+		char response[1024];
 		int body_length;
 
 		if (health_globals.mutex)
@@ -167,10 +178,18 @@ static void server_health_handle_connection(int client_fd)
 			"%s",
 			body_length,
 			head_only ? "" : json_body);
+
+#ifndef MSG_NOSIGNAL
+#define MSG_NOSIGNAL 0
+#endif
+
+		if (response_length > 0)
+			(void)send(client_fd, response, (size_t)response_length, MSG_NOSIGNAL);
 	}
 	else
 	{
 		char const *error_body = "{\"error\":\"not found\"}\n";
+		char response[512];
 		int body_length = (int)strlen(error_body);
 
 		response_length = snprintf(
@@ -184,15 +203,20 @@ static void server_health_handle_connection(int client_fd)
 			"%s",
 			body_length,
 			head_only ? "" : error_body);
+
+#ifndef MSG_NOSIGNAL
+#define MSG_NOSIGNAL 0
+#endif
+
+		if (response_length > 0)
+			(void)send(client_fd, response, (size_t)response_length, MSG_NOSIGNAL);
 	}
 
-	if (response_length > 0)
-		(void)send(client_fd, response, (size_t)response_length, 0);
-
+	free(buffer);
 	close(client_fd);
 }
 
-static int server_health_thread_func(void *data)
+static int SDLCALL server_health_thread_func(void *data)
 {
 	(void)data;
 
@@ -276,7 +300,14 @@ void server_health_start(short port)
 	}
 
 	health_globals.listen_socket = listen_fd;
-	health_globals.thread = SDL_CreateThread(server_health_thread_func, "server_health", NULL);
+	{
+		SDL_PropertiesID props = SDL_CreateProperties();
+		SDL_SetPointerProperty(props, SDL_PROP_THREAD_CREATE_ENTRY_FUNCTION_POINTER, (void *)server_health_thread_func);
+		SDL_SetStringProperty(props, SDL_PROP_THREAD_CREATE_NAME_STRING, "server_health");
+		SDL_SetNumberProperty(props, SDL_PROP_THREAD_CREATE_STACKSIZE_NUMBER, 512 * 1024);
+		health_globals.thread = SDL_CreateThreadWithProperties(props);
+		SDL_DestroyProperties(props);
+	}
 	if (!health_globals.thread)
 	{
 		platform_log("server_health: failed to create thread");
@@ -361,11 +392,35 @@ void server_health_publish(void)
 	else
 		snap.uptime_seconds = 0;
 
+	{
+		char const *cfg_name = config_string("network.server_name");
+		snprintf(snap.server_name, sizeof(snap.server_name), "%s", cfg_name && cfg_name[0] ? cfg_name : "OpenCE Server");
+		p2p_invite_link(snap.invite, sizeof(snap.invite));
+	}
+
 	if (health_globals.mutex)
 		SDL_LockMutex(health_globals.mutex);
 	health_globals.snapshot = snap;
 	if (health_globals.mutex)
 		SDL_UnlockMutex(health_globals.mutex);
+}
+
+void server_health_get_snapshot(struct server_health_snapshot *out)
+{
+	if (!out)
+		return;
+	if (health_globals.mutex)
+		SDL_LockMutex(health_globals.mutex);
+	*out = health_globals.snapshot;
+	if (health_globals.mutex)
+		SDL_UnlockMutex(health_globals.mutex);
+}
+
+unsigned long server_health_get_uptime(void)
+{
+	if (!health_globals.start_time_ms)
+		return 0;
+	return (system_milliseconds() - health_globals.start_time_ms) / 1000;
 }
 
 void server_health_stop(void)
