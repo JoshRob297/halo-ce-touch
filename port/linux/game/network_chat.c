@@ -1611,6 +1611,12 @@ void network_chat_handle_up(
 		chat_host_notice(machine_index, notice);
 		return;
 	}
+	/* (intercept lobby map voting votes) */
+	{
+		extern boolean network_test_handle_map_vote(long machine_index, char const *text);
+		if (network_test_handle_map_vote(machine_index, text))
+			return;
+	}
 	/* (nor one the host's settings refuse, whatever the client knew of them:
 	the sender is told why) */
 	if ((refused = chat_refused(chat_host_config_flags(), text)) != NULL)
