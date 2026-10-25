@@ -644,6 +644,11 @@ static const struct config_setting config_settings[] =
 		"The join password for the game. Empty means no password (open server).\n"
 		"When set, the game is listed in the server browser with a lock icon\n"
 		"and clients must enter the password to join." },
+	{ "network.map_rotation", _config_string, "\"sequence\"", "HALO_NET_MAP_ROTATION", _environment_value, _platform_all,
+		"How a dedicated server playlist advances between games:\n"
+		"\"sequence\" runs the playlist entries in order, looping back to the\n"
+		"start. \"shuffle\" chooses a random map and variant from the playlist\n"
+		"avoiding picking the exact same entry twice in a row (if playlist length > 1)." },
 	{ "network.health_port", _config_integer, "0", "HALO_NET_HEALTH_PORT", _environment_value, _platform_all,
 		"TCP port for the HTTP health endpoint (GET /health returns the state,\n"
 		"the map, the players and the minutes left as JSON). 0 turns it off.\n"
@@ -1596,6 +1601,7 @@ static const struct
 	{ "network.shield_effects", { "stock", "glow", "light_show", "overshield", "glow_overshield",
 		"light_show_overshield", "players", NULL }, NULL },
 	{ "network.coop_enemies_mode", { "none", "per_player", "multiplier", NULL }, NULL },
+	{ "network.map_rotation", { "sequence", "shuffle", NULL }, NULL },
 	{ "streamer.slurs", { "off", "severe", "strong", "mild", NULL }, NULL },
 	{ "streamer.swearing", { "off", "severe", "strong", "mild", NULL }, NULL },
 	{ "streamer.insults", { "off", "severe", "strong", "mild", NULL }, NULL },
