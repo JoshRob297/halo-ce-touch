@@ -684,12 +684,18 @@ void player_ui_set_single_player_local_player_controller(
 long player_ui_get_player1_last_used_profile_index(
 	void)
 {
-	if (!player1_profile_path[0] &&
-		saved_game_file_retrieve_player1_last_used_profile_directory(
-			player1_profile_path))
+	static boolean attempted = FALSE;
+
+	if (!attempted)
 	{
-		player1_last_used_profile_index = saved_game_file_find_profile_index_for_directory_path(
-			player1_profile_path, _saved_game_file_type_player_profile);
+		attempted = TRUE;
+		if (!player1_profile_path[0] &&
+			saved_game_file_retrieve_player1_last_used_profile_directory(
+				player1_profile_path))
+		{
+			player1_last_used_profile_index = saved_game_file_find_profile_index_for_directory_path(
+				player1_profile_path, _saved_game_file_type_player_profile);
+		}
 	}
 	return player1_last_used_profile_index;
 }
