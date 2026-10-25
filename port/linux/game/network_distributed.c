@@ -4275,6 +4275,46 @@ static void distributed_printable(
 	destination[length] = 0;
 }
 
+/* (the host) counts how many times this address or hardware id has been banned */
+static int distributed_count_strikes(
+	char const *address_text,
+	char const *hardware_id)
+{
+	FILE *file;
+	char line[512];
+	int strikes = 0;
+	size_t ip_len = csstrlen(address_text);
+	size_t hwid_len = csstrlen(hardware_id);
+
+	file = fopen(BANS_FILE, "r");
+	if (!file)
+		return 0;
+	while (fgets(line, sizeof(line), file))
+	{
+		char const *ip = strstr(line, "ip=");
+		char const *hwid = strstr(line, "hwid=");
+		boolean match = FALSE;
+
+		if (ip_len && ip && !strncmp(ip + 3, address_text, ip_len) &&
+			(ip[3 + ip_len] == '\t' || ip[3 + ip_len] == '\n' || ip[3 + ip_len] == '\r' ||
+				ip[3 + ip_len] == ' ' || ip[3 + ip_len] == 0))
+		{
+			match = TRUE;
+		}
+		if (hwid_len && hwid && !strncmp(hwid + 5, hardware_id, hwid_len) &&
+			(hwid[5 + hwid_len] == '\t' || hwid[5 + hwid_len] == '\n' ||
+				hwid[5 + hwid_len] == '\r' || hwid[5 + hwid_len] == ' ' ||
+				hwid[5 + hwid_len] == 0))
+		{
+			match = TRUE;
+		}
+		if (match)
+			strikes++;
+	}
+	fclose(file);
+	return strikes;
+}
+
 /* (the host) a line in a list of players (CHEATERS_FILE, BANS_FILE): when,
 their address, Discord user and names, and why; separated by tabs, each
 part kept to the characters allowed and their lengths (what a player could
@@ -4285,7 +4325,9 @@ static void distributed_write_player_record(
 	char const *address,
 	long machine_index,
 	char const *names,
-	char const *reason)
+	char const *reason,
+	time_t expires,
+	int strikes)
 {
 	char discord_id[DISCORD_ID_SIZE] = "";
 	char discord_name[DISCORD_NAME_SIZE] = "";
@@ -4318,12 +4360,23 @@ static void distributed_write_player_record(
 		return;
 	}
 	/* (the Discord user as the machine told it, which it may say is anyone's:
-	marked so) */
-	fprintf(file, "%s\tip=%s\thwid=%s\tdiscord_username=%s%s\tdiscord_id=%s%s\tplayers=%s\treason=%s\n", when,
-		kept_address, hardware_id[0] ? hardware_id : "none",
-		discord_name[0] ? discord_name : "none", discord_name[0] ? " (self-reported)" : "",
-		discord_id[0] ? discord_id : "none", discord_id[0] ? " (self-reported)" : "",
-		kept_names, kept_reason);
+	marked so; optional expiration timestamp and strike count for escalating bans) */
+	if (expires > 0)
+	{
+		fprintf(file, "%s\tip=%s\thwid=%s\tdiscord_username=%s%s\tdiscord_id=%s%s\tplayers=%s\treason=%s\texpires=%ld\tstrikes=%d\n",
+			when, kept_address, hardware_id[0] ? hardware_id : "none",
+			discord_name[0] ? discord_name : "none", discord_name[0] ? " (self-reported)" : "",
+			discord_id[0] ? discord_id : "none", discord_id[0] ? " (self-reported)" : "",
+			kept_names, kept_reason, (long)expires, strikes);
+	}
+	else
+	{
+		fprintf(file, "%s\tip=%s\thwid=%s\tdiscord_username=%s%s\tdiscord_id=%s%s\tplayers=%s\treason=%s\n", when,
+			kept_address, hardware_id[0] ? hardware_id : "none",
+			discord_name[0] ? discord_name : "none", discord_name[0] ? " (self-reported)" : "",
+			discord_id[0] ? discord_id : "none", discord_id[0] ? " (self-reported)" : "",
+			kept_names, kept_reason);
+	}
 	fclose(file);
 }
 
@@ -4337,8 +4390,8 @@ static void distributed_log_cheater(
 	char address[32];
 
 	distributed_machine_address_text(machine_index, address, sizeof(address));
-	distributed_write_player_record(CHEATERS_FILE, address, machine_index, names, reason);
-	distributed_write_player_record(BANS_FILE, address, machine_index, names, reason);
+	distributed_write_player_record(CHEATERS_FILE, address, machine_index, names, reason, 0, 0);
+	distributed_write_player_record(BANS_FILE, address, machine_index, names, reason, 0, 0);
 }
 
 /* (the host: network_server_manager.c) whether a machine of this address
@@ -4352,6 +4405,7 @@ boolean network_distributed_banned(
 	char text[32];
 	char line[512];
 	char kept_hardware_id[40];
+	time_t now = time(NULL);
 	FILE *file;
 	boolean banned = FALSE;
 
@@ -4367,15 +4421,17 @@ boolean network_distributed_banned(
 	{
 		char const *ip = strstr(line, "ip=");
 		char const *hwid = strstr(line, "hwid=");
+		char const *exp_str = strstr(line, "expires=");
 		size_t length = csstrlen(text);
 		size_t hardware_id_length = csstrlen(kept_hardware_id);
+		boolean match = FALSE;
 
 		/* (the whole address: 1.2.3.4 is not 1.2.3.45) */
 		if (length && ip && !strncmp(ip + 3, text, length) &&
 			(ip[3 + length] == '\t' || ip[3 + length] == '\n' || ip[3 + length] == '\r' ||
 				ip[3 + length] == ' ' || ip[3 + length] == 0))
 		{
-			banned = TRUE;
+			match = TRUE;
 		}
 		/* (or the whole hardware id) */
 		if (hardware_id_length && hwid && !strncmp(hwid + 5, kept_hardware_id, hardware_id_length) &&
@@ -4383,6 +4439,21 @@ boolean network_distributed_banned(
 				hwid[5 + hardware_id_length] == '\r' || hwid[5 + hardware_id_length] == ' ' ||
 				hwid[5 + hardware_id_length] == 0))
 		{
+			match = TRUE;
+		}
+
+		if (match)
+		{
+			/* check if this ban has an expiration timestamp */
+			if (exp_str)
+			{
+				time_t expires = (time_t)atol(exp_str + 8);
+				if (expires > 0 && now >= expires)
+				{
+					/* temporary ban expired; ignore this line */
+					continue;
+				}
+			}
 			banned = TRUE;
 		}
 	}
@@ -4401,13 +4472,49 @@ void network_distributed_ban(
 {
 	char text[32];
 	char kept_names[64];
+	char hardware_id[40] = "";
 	char discord_id[DISCORD_ID_SIZE] = "";
 	char discord_name[DISCORD_NAME_SIZE] = "";
 	char discord[DISCORD_ID_SIZE + DISCORD_NAME_SIZE + 16] = "";
+	char duration_desc[64] = "";
 	char notice[MAXIMUM_NOTICE_LENGTH];
+	time_t now = time(NULL);
+	time_t expires = 0;
+	int strikes = 0;
 
 	distributed_address_text(address, text, sizeof(text));
-	distributed_write_player_record(BANS_FILE, text, machine_index, names, "banned by the host");
+	if (machine_index >= 0 && machine_index < HALO_PORT_MAXIMUM_NETWORK_MACHINES)
+		p2p_hardware_id_sanitize(hardware_id, 33, network_game_server_machine_hardware_id(machine_index));
+
+	if (config_boolean("network.escalating_bans"))
+	{
+		strikes = distributed_count_strikes(text, hardware_id) + 1;
+		switch (strikes)
+		{
+		case 1:
+			expires = now + 3600; /* 1 hour */
+			snprintf(duration_desc, sizeof(duration_desc), " for 1 hour (strike 1)");
+			break;
+		case 2:
+			expires = now + 86400; /* 24 hours */
+			snprintf(duration_desc, sizeof(duration_desc), " for 24 hours (strike 2)");
+			break;
+		case 3:
+			expires = now + 604800; /* 7 days */
+			snprintf(duration_desc, sizeof(duration_desc), " for 7 days (strike 3)");
+			break;
+		default:
+			expires = 0; /* permanent */
+			snprintf(duration_desc, sizeof(duration_desc), " permanently (strike %d)", strikes);
+			break;
+		}
+	}
+	else
+	{
+		snprintf(duration_desc, sizeof(duration_desc), "");
+	}
+
+	distributed_write_player_record(BANS_FILE, text, machine_index, names, "banned by the host", expires, strikes);
 	distributed_printable(kept_names, sizeof(kept_names), names);
 	if (game_in_progress() && machine_index >= 0 && machine_index < HALO_PORT_MAXIMUM_NETWORK_MACHINES)
 	{
@@ -4417,7 +4524,7 @@ void network_distributed_ban(
 	}
 	if (discord_id[0] || discord_name[0])
 		snprintf(discord, sizeof(discord), " (Discord: %s, %s)", discord_name, discord_id);
-	snprintf(notice, sizeof(notice), "%s%s banned by the host", kept_names, discord);
+	snprintf(notice, sizeof(notice), "%s%s banned by the host%s", kept_names, discord, duration_desc);
 	/* (to every client in the game: in the lobby, the host's own) */
 	if (game_in_progress())
 		distributed_send_notice(notice);
@@ -4546,7 +4653,7 @@ static void distributed_note_client_clock(
 				snprintf(reason, sizeof(reason), "unverified speed hack (its datagrams only, not dropped: "
 					"game ran %.2f times as fast)", rate);
 				distributed_machine_address_text(machine_index, address, sizeof(address));
-				distributed_write_player_record(CHEATERS_FILE, address, machine_index, names, reason);
+				distributed_write_player_record(CHEATERS_FILE, address, machine_index, names, reason, 0, 0);
 				clock->logged_unverified = TRUE;
 			}
 		}

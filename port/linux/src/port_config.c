@@ -653,13 +653,13 @@ static const struct config_setting config_settings[] =
 		"Inactivity timeout in seconds before an idle player is kicked from the game\n"
 		"(0 turns it off). At 30 seconds before the limit, a private warning is sent\n"
 		"to the player. The host is never kicked." },
+	{ "network.escalating_bans", _config_boolean, "true", "HALO_NET_ESCALATING_BANS", _environment_set_is_true, _platform_all,
+		"Progressive ban durations: strike 1 = 1 hour, strike 2 = 24 hours,\n"
+		"strike 3 = 7 days, strike 4+ = permanent. False uses permanent bans only." },
 	{ "network.health_port", _config_integer, "0", "HALO_NET_HEALTH_PORT", _environment_value, _platform_all,
 		"TCP port for the HTTP health endpoint (GET /health returns the state,\n"
 		"the map, the players and the minutes left as JSON). 0 turns it off.\n"
 		"Bind to 0.0.0.0, so a container publishes it; it serves no other path.\n" },
-	{ "network.afk_timeout", _config_integer, "180", "HALO_NET_AFK_TIMEOUT", _environment_value, _platform_all,
-		"Seconds of inactivity before an idle machine is kicked during a game.\n"
-		"0 disables AFK auto-kick. A warning is sent 30 seconds prior to kicking." },
 	{ "network.stun_servers", _config_string, "\"stun.l.google.com:19302,stun.cloudflare.com:3478\"",
 		"HALO_NET_STUN", _environment_value, _platform_all,
 		"Public STUN servers that tell this machine its internet address;\n"
