@@ -649,6 +649,11 @@ static const struct config_setting config_settings[] =
 		"\"sequence\" runs the playlist entries in order, looping back to the\n"
 		"start. \"shuffle\" chooses a random map and variant from the playlist\n"
 		"avoiding picking the exact same entry twice in a row (if playlist length > 1)." },
+	{ "network.map_voting", _config_boolean, "false", "HALO_NET_MAP_VOTING", _environment_set_is_true, _platform_all,
+		"Allow players to vote for the next map and gametype during the lobby countdown\n"
+		"by typing the option number in chat. Default is false." },
+	{ "network.map_vote_options", _config_integer, "3", "HALO_NET_MAP_VOTE_OPTIONS", _environment_value, _platform_all,
+		"Number of map/gametype candidates presented in lobby vote (2 to 5). Default is 3." },
 	{ "network.afk_timeout", _config_integer, "180", "HALO_NET_AFK_TIMEOUT", _environment_value, _platform_all,
 		"Inactivity timeout in seconds before an idle player is kicked from the game\n"
 		"(0 turns it off). At 30 seconds before the limit, a private warning is sent\n"

@@ -345,6 +345,209 @@ static void network_test_select_flat_index(
 	}
 }
 
+/* format a human-readable map and variant label for an indexed entry */
+static void network_test_get_flat_label(
+	short flat_index,
+	char *destination,
+	short size)
+{
+	short flat = 0;
+	short i;
+
+	for (i = 0; ; i++)
+	{
+		char const *entry = network_test_spec_entry(i);
+		short count;
+
+		if (!entry)
+			break;
+		count = network_test_spec_entry_variant_count(entry);
+		if (flat_index < flat + count)
+		{
+			char map_name[64];
+			char variant_name[64];
+			char const *colon = strchr(entry, ':');
+			short len = colon ? (short)(colon - entry) : (short)strlen(entry);
+
+			snprintf(map_name, sizeof(map_name), "%.*s", len, entry);
+			{
+				short v_target = flat_index - flat;
+				short v_curr = 0;
+				char const *at = colon ? colon + 1 : "";
+
+				variant_name[0] = 0;
+				while (*at)
+				{
+					char const *comma = strchr(at, ',');
+					short vlen = comma ? (short)(comma - at) : (short)strlen(at);
+
+					if (v_curr == v_target)
+					{
+						snprintf(variant_name, sizeof(variant_name), "%.*s", vlen, at);
+						break;
+					}
+					v_curr++;
+					at = comma ? comma + 1 : "";
+				}
+				if (!variant_name[0])
+					snprintf(variant_name, sizeof(variant_name), "slayer");
+			}
+			snprintf(destination, size, "%s (%s)", map_name, variant_name);
+			return;
+		}
+		flat += count;
+	}
+	snprintf(destination, size, "unknown");
+}
+
+/* ---------- Map Voting (dedicated host) */
+
+enum { MAXIMUM_MAP_VOTE_CANDIDATES = 5 };
+
+static struct
+{
+	boolean active;
+	boolean announced;
+	short candidate_count;
+	short candidate_flat_indices[MAXIMUM_MAP_VOTE_CANDIDATES];
+	char candidate_labels[MAXIMUM_MAP_VOTE_CANDIDATES][64];
+	short machine_votes[HALO_PORT_MAXIMUM_NETWORK_MACHINES];
+	boolean tally_completed;
+} network_map_vote;
+
+static void network_test_map_voting_start(
+	void)
+{
+	short total;
+	short want_options;
+	short i;
+	short current_flat;
+
+	csmemset(&network_map_vote, 0, sizeof(network_map_vote));
+	for (i = 0; i < HALO_PORT_MAXIMUM_NETWORK_MACHINES; i++)
+		network_map_vote.machine_votes[i] = NONE;
+
+	if (!config_boolean("network.map_voting"))
+		return;
+	total = network_test_total_variants();
+	if (total < 2)
+		return;
+
+	want_options = (short)config_integer("network.map_vote_options");
+	want_options = PIN(want_options, 2, MAXIMUM_MAP_VOTE_CANDIDATES);
+	if (want_options > total)
+		want_options = total;
+
+	network_map_vote.candidate_count = want_options;
+	current_flat = network_test_current_flat_index();
+
+	for (i = 0; i < want_options; i++)
+	{
+		short candidate = (short)((current_flat + i) % total);
+		network_map_vote.candidate_flat_indices[i] = candidate;
+		network_test_get_flat_label(candidate, network_map_vote.candidate_labels[i],
+			sizeof(network_map_vote.candidate_labels[i]));
+	}
+
+	network_map_vote.active = TRUE;
+	network_map_vote.announced = FALSE;
+	network_map_vote.tally_completed = FALSE;
+}
+
+static void network_test_map_voting_announce(
+	void)
+{
+	char notice[256];
+	short offset = 0;
+	short i;
+
+	if (!network_map_vote.active || network_map_vote.announced)
+		return;
+
+	offset += (short)snprintf(notice + offset, sizeof(notice) - offset, "Vote Next Map:");
+	for (i = 0; i < network_map_vote.candidate_count && offset < (short)sizeof(notice) - 32; i++)
+	{
+		offset += (short)snprintf(notice + offset, sizeof(notice) - offset, " [%d] %s",
+			i + 1, network_map_vote.candidate_labels[i]);
+	}
+	snprintf(notice + offset, sizeof(notice) - offset, " (Type 1-%d in chat)", network_map_vote.candidate_count);
+
+	distributed_send_notice(notice);
+	network_map_vote.announced = TRUE;
+}
+
+boolean network_test_handle_map_vote(
+	long machine_index,
+	char const *text)
+{
+	short vote_idx;
+	char ack[128];
+
+	if (!network_map_vote.active || !network_map_vote.announced || network_map_vote.tally_completed ||
+		machine_index < 0 || machine_index >= HALO_PORT_MAXIMUM_NETWORK_MACHINES)
+	{
+		return FALSE;
+	}
+
+	while (*text == ' ')
+		text++;
+
+	if (text[0] >= '1' && text[0] < '1' + network_map_vote.candidate_count &&
+		(text[1] == '\0' || text[1] == ' ' || text[1] == '\r' || text[1] == '\n'))
+	{
+		vote_idx = (short)(text[0] - '1');
+		network_map_vote.machine_votes[machine_index] = vote_idx;
+		snprintf(ack, sizeof(ack), "Vote registered for [%d] %s", vote_idx + 1,
+			network_map_vote.candidate_labels[vote_idx]);
+		distributed_send_notice_to_machine(machine_index, ack);
+		return TRUE;
+	}
+
+	return FALSE;
+}
+
+static void network_test_map_voting_finalize(
+	void)
+{
+	short vote_counts[MAXIMUM_MAP_VOTE_CANDIDATES] = { 0 };
+	short m;
+	short i;
+	short winner = 0;
+	short max_votes = 0;
+	char notice[128];
+
+	if (!network_map_vote.active || network_map_vote.tally_completed)
+		return;
+
+	for (m = 0; m < HALO_PORT_MAXIMUM_NETWORK_MACHINES; m++)
+	{
+		short v = network_map_vote.machine_votes[m];
+		if (v >= 0 && v < network_map_vote.candidate_count)
+			vote_counts[v]++;
+	}
+
+	for (i = 0; i < network_map_vote.candidate_count; i++)
+	{
+		if (vote_counts[i] > max_votes)
+		{
+			max_votes = vote_counts[i];
+			winner = i;
+		}
+	}
+
+	if (max_votes > 0)
+	{
+		snprintf(notice, sizeof(notice), "Winning Map: [%d] %s with %d vote%s!",
+			winner + 1, network_map_vote.candidate_labels[winner],
+			max_votes, max_votes == 1 ? "" : "s");
+		distributed_send_notice(notice);
+		network_test_select_flat_index(network_map_vote.candidate_flat_indices[winner]);
+	}
+
+	network_map_vote.active = FALSE;
+	network_map_vote.tally_completed = TRUE;
+}
+
 /* steps to the game after the current one: sequence runs in order, shuffle picks
 a random map/variant avoiding picking the exact same entry twice in a row */
 static void network_test_next_game(
@@ -1687,6 +1890,7 @@ void network_test_update(
 				/* a join that arrived as the last game ended would refuse every
 				later one, the server holding it behind the queued player */
 				network_game_server_port_clear_queued_players(global_network_game_server_get());
+				network_test_map_voting_start();
 				platform_log("network test: the next game (%s, %s)", network_test.map_name,
 					network_test.variant_name);
 			}
@@ -1820,6 +2024,7 @@ void network_test_update(
 			pressing A in the lobby adds one */
 			if (!network_test.map_set && network_test.setup_seconds >= 1.0f && global_network_game_server_get())
 			{
+				network_test_map_voting_announce();
 				char path[128];
 				char variant_name[64];
 				struct game_variant variant;
@@ -1933,6 +2138,7 @@ void network_test_update(
 			{
 				struct network_game_server *server = global_network_game_server_get();
 
+				network_test_map_voting_finalize();
 				if (game_engine_running())
 				{
 					network_test.started = TRUE;
