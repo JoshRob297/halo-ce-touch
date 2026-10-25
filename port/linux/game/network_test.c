@@ -91,6 +91,7 @@ Called from the main loop every frame (main.c).
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 /* the platform layer's (port/linux/src/port_config.c) */
 const char *config_string(char const *name);
@@ -281,11 +282,130 @@ static boolean network_test_has_next_game(
 	return network_test.spec[0] != 0;
 }
 
-/* steps to the game after the current one: the next variant of this map,
-else the first variant of the next map (the first again past the last) */
+/* count variants in a spec entry (entry points to spec or within spec) */
+static short network_test_spec_entry_variant_count(
+	char const *entry)
+{
+	char const *colon;
+	char const *variants;
+	size_t spec_len;
+	short count = 1;
+
+	if (!entry || !*entry)
+		return 0;
+	spec_len = strcspn(entry, ";");
+	colon = memchr(entry, ':', spec_len);
+	if (!colon)
+		return 1;
+	variants = colon + 1;
+	while (variants < entry + spec_len)
+	{
+		if (*variants == ',')
+			count++;
+		variants++;
+	}
+	return count;
+}
+
+/* count total map/variant combinations across the entire spec */
+static short network_test_total_variants(
+	void)
+{
+	short total = 0;
+	short i;
+
+	for (i = 0; ; i++)
+	{
+		char const *entry = network_test_spec_entry(i);
+		if (!entry)
+			break;
+		total += network_test_spec_entry_variant_count(entry);
+	}
+	return total;
+}
+
+/* find the flat variant index of the current map (spec_index) and variant_index */
+static short network_test_current_flat_index(
+	void)
+{
+	short flat = 0;
+	short i;
+
+	for (i = 0; i < network_test.spec_index; i++)
+	{
+		char const *entry = network_test_spec_entry(i);
+		if (!entry)
+			break;
+		flat += network_test_spec_entry_variant_count(entry);
+	}
+	flat += network_test.variant_index;
+	return flat;
+}
+
+/* select map and variant from a flat variant index */
+static void network_test_select_flat_index(
+	short target_flat)
+{
+	short flat = 0;
+	short i;
+
+	for (i = 0; ; i++)
+	{
+		char const *entry = network_test_spec_entry(i);
+		short count;
+
+		if (!entry)
+			break;
+		count = network_test_spec_entry_variant_count(entry);
+		if (target_flat < flat + count)
+		{
+			network_test.spec_index = i;
+			network_test_select_map();
+			network_test.variant_index = target_flat - flat;
+			return;
+		}
+		flat += count;
+	}
+}
+
+/* steps to the game after the current one: sequence runs in order, shuffle picks
+a random map/variant avoiding picking the exact same entry twice in a row */
 static void network_test_next_game(
 	void)
 {
+	const char *rotation = config_string("network.map_rotation");
+	static boolean seeded = FALSE;
+
+	if (!strcmp(rotation, "shuffle"))
+	{
+		short total = network_test_total_variants();
+
+		if (total > 1)
+		{
+			short current_flat;
+			short chosen_flat;
+
+			if (!seeded)
+			{
+				srand((unsigned int)time(NULL));
+				seeded = TRUE;
+			}
+			current_flat = network_test_current_flat_index();
+			chosen_flat = (short)(rand() % (total - 1));
+			if (chosen_flat >= current_flat)
+				chosen_flat++;
+			network_test_select_flat_index(chosen_flat);
+			return;
+		}
+		else if (total == 1)
+		{
+			network_test.spec_index = 0;
+			network_test.variant_index = 0;
+			network_test_select_map();
+			return;
+		}
+	}
+
 	if (network_test_variant(network_test.variant_index + 1, NULL, 0))
 	{
 		network_test.variant_index++;
