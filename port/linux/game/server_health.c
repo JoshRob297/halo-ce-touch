@@ -55,7 +55,7 @@ static struct
 	SDL_Thread *thread;
 	SDL_Mutex *mutex;
 	int listen_socket;
-	int stop_requested;
+	SDL_AtomicInt stop_requested;
 	unsigned long start_time_ms;
 	struct server_health_snapshot snapshot;
 } health_globals = {
@@ -78,6 +78,7 @@ static void server_health_handle_connection(int client_fd)
 	char response[1024];
 	int response_length;
 	struct server_health_snapshot snap;
+	boolean head_only;
 
 	pfd.fd = client_fd;
 	pfd.events = POLLIN;
@@ -106,8 +107,10 @@ static void server_health_handle_connection(int client_fd)
 		close(client_fd);
 		return;
 	}
+	/* (HEAD sends the headers alone, its body left out, as a monitor asks) */
+	head_only = strcmp(method, "HEAD") == 0;
 
-	if (strcmp(method, "GET") == 0 && strcmp(path, "/health") == 0)
+	if ((strcmp(method, "GET") == 0 || strcmp(method, "HEAD") == 0) && strcmp(path, "/health") == 0)
 	{
 		char const *state_str = "no_server";
 		char json_body[512];
@@ -160,7 +163,7 @@ static void server_health_handle_connection(int client_fd)
 			"\r\n"
 			"%s",
 			body_length,
-			json_body);
+			head_only ? "" : json_body);
 	}
 	else
 	{
@@ -177,7 +180,7 @@ static void server_health_handle_connection(int client_fd)
 			"\r\n"
 			"%s",
 			body_length,
-			error_body);
+			head_only ? "" : error_body);
 	}
 
 	if (response_length > 0)
@@ -190,7 +193,7 @@ static int server_health_thread_func(void *data)
 {
 	(void)data;
 
-	while (!health_globals.stop_requested)
+	while (!SDL_GetAtomicInt(&health_globals.stop_requested))
 	{
 		struct pollfd pfd;
 		int listen_fd = health_globals.listen_socket;
@@ -235,7 +238,7 @@ void server_health_start(short port)
 	if (health_globals.thread != NULL || health_globals.listen_socket >= 0)
 		server_health_stop();
 
-	health_globals.stop_requested = 0;
+	SDL_SetAtomicInt(&health_globals.stop_requested, 0);
 	health_globals.start_time_ms = system_milliseconds();
 
 	if (!health_globals.mutex)
@@ -364,18 +367,24 @@ void server_health_publish(void)
 
 void server_health_stop(void)
 {
-	health_globals.stop_requested = 1;
+	/* (the flag first, then a shutdown to wake the thread's poll: the fd is
+	closed only once the thread has left, or a new socket of the game's could
+	take its number while the thread still polls it) */
+	SDL_SetAtomicInt(&health_globals.stop_requested, 1);
 
 	if (health_globals.listen_socket >= 0)
-	{
-		close(health_globals.listen_socket);
-		health_globals.listen_socket = -1;
-	}
+		shutdown(health_globals.listen_socket, SHUT_RDWR);
 
 	if (health_globals.thread)
 	{
 		SDL_WaitThread(health_globals.thread, NULL);
 		health_globals.thread = NULL;
+	}
+
+	if (health_globals.listen_socket >= 0)
+	{
+		close(health_globals.listen_socket);
+		health_globals.listen_socket = -1;
 	}
 
 	if (health_globals.mutex)
@@ -385,7 +394,7 @@ void server_health_stop(void)
 	}
 
 	health_globals.start_time_ms = 0;
-	health_globals.stop_requested = 0;
+	SDL_SetAtomicInt(&health_globals.stop_requested, 0);
 }
 
 #else /* _WIN32 */
