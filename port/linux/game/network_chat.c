@@ -936,7 +936,8 @@ static byte chat_host_config_flags(
 	byte flags = 0;
 
 	/* (in either case: HALO_NET_TEXT_CHAT=OFF is off) */
-	if (setting && !chat_names_equal(setting, "off") && !p2p_hosting_listed())
+	if (setting && !chat_names_equal(setting, "off") &&
+		(!p2p_hosting_listed() || config_boolean("network.public_chat")))
 	{
 		flags |= (byte)FLAG(_chat_config_allowed_bit);
 		if (chat_names_equal(setting, "links"))

@@ -529,6 +529,12 @@ static const struct config_setting config_settings[] =
 		"Hosting: the text chat: \"on\" (links in lines are refused), \"links\"\n"
 		"(links allowed) or \"off\", in either case. Always off in a game listed\n"
 		"in the server browser (a public internet game)." },
+	{ "network.public_chat", _config_boolean, "false", "HALO_NET_PUBLIC_CHAT", _environment_set_is_true, _platform_all,
+		"Allow text chat in games listed in the public server browser. The default\n"
+		"is false (chat off in public listings, as a client-hosted game). A\n"
+		"dedicated server with operator moderation (kick, ban, /mute) may set\n"
+		"this to true. network.text_chat still controls whether chat is on at\n"
+		"all; this only lifts the public-listing restriction.\n" },
 	{ "network.votekick", _config_boolean, "true", "HALO_NET_VOTEKICK", _environment_value, _platform_all,
 		"Hosting: let the players vote to kick a player (the scoreboard's\n"
 		"right-click, or the console's votekick). More than half of the players\n"
