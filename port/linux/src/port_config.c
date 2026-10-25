@@ -644,6 +644,10 @@ static const struct config_setting config_settings[] =
 		"The join password for the game. Empty means no password (open server).\n"
 		"When set, the game is listed in the server browser with a lock icon\n"
 		"and clients must enter the password to join." },
+	{ "network.health_port", _config_integer, "0", "HALO_NET_HEALTH_PORT", _environment_value, _platform_all,
+		"TCP port for the HTTP health endpoint (GET /health returns the state,\n"
+		"the map, the players and the minutes left as JSON). 0 turns it off.\n"
+		"Bind to 0.0.0.0, so a container publishes it; it serves no other path.\n" },
 	{ "network.stun_servers", _config_string, "\"stun.l.google.com:19302,stun.cloudflare.com:3478\"",
 		"HALO_NET_STUN", _environment_value, _platform_all,
 		"Public STUN servers that tell this machine its internet address;\n"

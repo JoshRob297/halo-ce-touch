@@ -44,6 +44,8 @@ boolean network_game_server_reset_to_pregame(
 word network_game_server_get_state(
 	struct network_game_server *server,
 	short *substate);
+struct network_game *network_game_server_get_game(
+	struct network_game_server *server);
 void network_game_server_pause_countdown(
 	struct network_game_server *server,
 	boolean pause_countdown);

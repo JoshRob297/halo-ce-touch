@@ -2416,6 +2416,11 @@ static void main_exit(
 	/* port: the profiling build's recording written out before the game goes */
 	profile_trace_shutdown();
 #endif
+	/* port: stop health check endpoint if running */
+	{
+		extern void server_health_stop(void);
+		server_health_stop();
+	}
 	switch (main_globals.connection)
 	{
 	case _game_connection_network_server:
