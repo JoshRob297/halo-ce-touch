@@ -201,7 +201,8 @@ boolean game_modes_gametype_by_name(
 
 	for (index = 0; index < NUMBER_OF_GAMETYPES; index++)
 	{
-		if (!strcmp(name, game_modes_gametypes[index].name))
+		if (!strcmp(name, game_modes_gametypes[index].name) ||
+			(index == _gametype_hardcore_slayer && !strcmp(name, "hardcore_slayer")))
 		{
 			game_modes_gametype(index, variant, options);
 			return TRUE;
