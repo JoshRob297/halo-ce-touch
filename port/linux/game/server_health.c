@@ -7,7 +7,10 @@ Provides an unauthenticated JSON health check on a dedicated TCP port.
 
 #include "server_health.h"
 
-#if !defined(_WIN32)
+/* (Linux and Windows only: the Android build has no SDL headers in its guest,
+and the web build has no sockets nor threads. Everywhere else the stubs below
+answer, and the endpoint is simply off.) */
+#if !defined(_WIN32) && !defined(HALO_ANDROID) && !defined(HALO_ARM64_GUEST) && !defined(HALO_WEB)
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -397,7 +400,7 @@ void server_health_stop(void)
 	SDL_SetAtomicInt(&health_globals.stop_requested, 0);
 }
 
-#else /* _WIN32 */
+#else /* not Linux, Windows, Android or web */
 
 void server_health_start(short port)
 {
@@ -412,4 +415,4 @@ void server_health_stop(void)
 {
 }
 
-#endif /* !_WIN32 */
+#endif /* the endpoint's platforms */
