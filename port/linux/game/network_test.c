@@ -103,6 +103,10 @@ void platform_log(char const *format, ...);
 void p2p_set_hosting_allowed(int allowed);
 void p2p_set_hosting_public(int public);
 void p2p_set_hosting_password(const char *password);
+/* port/linux/game/server_health.c */
+void server_health_start(short port);
+void server_health_publish(void);
+void server_health_stop(void);
 /* damage.c's */
 void damage_kill_object_for_player(long object_index, long player_index);
 /* network_distributed.c's */
@@ -1276,6 +1280,9 @@ void network_test_update(
 	{
 		static real last_state_log;
 
+		if (network_test.mode == _network_test_host)
+			server_health_publish();
+
 		last_state_log += seconds;
 		if (network_test.mode == _network_test_host && last_state_log >= 5.0f &&
 			global_network_game_server_get())
@@ -1722,6 +1729,7 @@ void network_test_update(
 			{
 				/* as Multiplayer > Split Screen does (split_screen_game_initialize) */
 				ui_widgets_close_all();
+				server_health_stop();
 				dispose_global_network_game_server();
 				dispose_global_network_game_client();
 				network_game_accept_remote_connections(FALSE);
@@ -1766,6 +1774,7 @@ void network_test_update(
 						char const *server_password = config_string("network.server_password");
 						p2p_set_hosting_password(server_password && server_password[0] ? server_password : NULL);
 					}
+					server_health_start((short)config_integer("network.health_port"));
 				}
 				platform_log("network test: hosting %s", network_test.map_name);
 				/* (in the server browser, as Create Game > Internet's PUBLIC) */
@@ -1940,6 +1949,7 @@ void network_test_update(
 		{
 			network_test.set_up = TRUE;
 			dispose_global_network_game_client();
+			server_health_stop();
 			dispose_global_network_game_server();
 			network_test_set_name();
 			if (create_global_network_game_client())
