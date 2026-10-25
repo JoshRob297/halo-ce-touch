@@ -640,6 +640,10 @@ static const struct config_setting config_settings[] =
 		"browser (debug.network_test's host; a game the menus make takes\n"
 		"Server Setup's own). Empty leaves the game's own, which here is\n"
 		"none." },
+	{ "network.server_password", _config_string, "\"\"", "HALO_NET_SERVER_PASSWORD", _environment_value, _platform_all,
+		"The join password for the game. Empty means no password (open server).\n"
+		"When set, the game is listed in the server browser with a lock icon\n"
+		"and clients must enter the password to join." },
 	{ "network.stun_servers", _config_string, "\"stun.l.google.com:19302,stun.cloudflare.com:3478\"",
 		"HALO_NET_STUN", _environment_value, _platform_all,
 		"Public STUN servers that tell this machine its internet address;\n"

@@ -97,6 +97,7 @@ void platform_log(char const *format, ...);
 /* port/linux/src/p2p.c: whether this machine hosts, and lists */
 void p2p_set_hosting_allowed(int allowed);
 void p2p_set_hosting_public(int public);
+void p2p_set_hosting_password(const char *password);
 /* damage.c's */
 void damage_kill_object_for_player(long object_index, long player_index);
 /* network_distributed.c's */
@@ -1672,6 +1673,10 @@ void network_test_update(
 					}
 					p2p_set_hosting_allowed(online);
 					p2p_set_hosting_public(online && config_boolean("network.host_public"));
+					{
+						char const *server_password = config_string("network.server_password");
+						p2p_set_hosting_password(server_password && server_password[0] ? server_password : NULL);
+					}
 				}
 				platform_log("network test: hosting %s", network_test.map_name);
 				/* (in the server browser, as Create Game > Internet's PUBLIC) */
