@@ -365,6 +365,8 @@ void server_health_publish(void)
 			}
 
 			snap.players = (int)game->player_count;
+			if (snap.players > 0 && config_boolean("debug.network_test_player"))
+				snap.players--;
 			snap.max_players = (int)game->maximum_players;
 
 			time_limit = (long)game->variant_options.time_limit;

@@ -281,7 +281,7 @@ int server_web_dispatch(int client_fd, const char *method, const char *path, con
 					"\"uptime\":%lu,"
 					"\"games_hosted\":1,"
 					"\"build\":\"build-276\","
-					"\"network_version\":38,"
+					"\"network_version\":39,"
 					"\"frame_ms_max\":3.5,"
 					"\"tick_ms_avg\":1.2,"
 					"\"rotation\":{\"index\":0,\"next\":{\"text\":\"wizard:gun_game\"}},"
@@ -293,7 +293,7 @@ int server_web_dispatch(int client_fd, const char *method, const char *path, con
 					"\"invite\":\"%s\""
 					"}"
 					"}\n",
-					snap.server_name[0] ? snap.server_name : "JOCES 24/7 CUSTOM",
+					config_string("network.server_name")[0] ? config_string("network.server_name") : "JOCESLAB MX",
 					state_str,
 					snap.map[0] ? snap.map : "beavercreek",
 					snap.variant[0] ? snap.variant : "Gun Game",
@@ -325,6 +325,9 @@ int server_web_dispatch(int client_fd, const char *method, const char *path, con
 				for (i = 0; i < 16; i++)
 				{
 					struct network_player *p = &game->players[i];
+					/* Ocultar el host dummy del slot 0 si network_test_player esta activo */
+					if (i == 0 && config_boolean("debug.network_test_player"))
+						continue;
 					if (network_player_is_valid(p))
 					{
 						char name[32];
@@ -353,37 +356,53 @@ int server_web_dispatch(int client_fd, const char *method, const char *path, con
 			return 1;
 		}
 
-		/* /api/settings */
+				/* /api/settings */
 		if (strcmp(path, "/api/settings") == 0)
 		{
-			send_json_object(client_fd,
+			char dyn_settings[4096];
+			snprintf(dyn_settings, sizeof(dyn_settings),
 				"{\"ok\":true,\"settings\":["
-				"{\"name\":\"network.server_name\",\"value\":\"JOCES 24/7 CUSTOM\",\"type\":\"string\",\"comment\":\"The name shown in the server browser\"},"
-				"{\"name\":\"network.tunnel_port\",\"value\":2302,\"type\":\"integer\",\"comment\":\"The UDP port for internet play\"},"
-				"{\"name\":\"network.online\",\"value\":true,\"type\":\"boolean\",\"comment\":\"Enable internet play\"},"
-				"{\"name\":\"network.host_public\",\"value\":true,\"type\":\"boolean\",\"comment\":\"List the game in the server browser\"},"
-				"{\"name\":\"network.public_chat\",\"value\":true,\"type\":\"boolean\",\"comment\":\"Allow text chat in public games\"},"
-				"{\"name\":\"network.map_rotation\",\"value\":\"shuffle\",\"type\":\"string\",\"choices\":[\"sequence\",\"shuffle\"],\"comment\":\"Playlist rotation mode\"},"
-				"{\"name\":\"network.map_voting\",\"value\":true,\"type\":\"boolean\",\"comment\":\"Allow lobby map voting by chat\"},"
-				"{\"name\":\"network.afk_timeout\",\"value\":180,\"type\":\"integer\",\"comment\":\"AFK inactivity timeout in seconds\"},"
-				"{\"name\":\"server.region\",\"value\":\"eu\",\"type\":\"string\",\"role\":\"admin\",\"comment\":\"Server region label in server browser (eu, na-east, sa...)\"},\n"
-				"{\"name\":\"server.chat_filter\",\"value\":\"off\",\"type\":\"string\",\"choices\":[\"off\",\"censor\",\"block\"],\"role\":\"moderator\",\"comment\":\"Moderation word filter for text chat and player names (off, censor, block)\"},\n"
-				"{\"name\":\"debug.network_test_countdown\",\"value\":5,\"type\":\"integer\",\"role\":\"admin\",\"comment\":\"Lobby countdown in seconds (0 = fast instant transitions)\"},\n"
-				"{\"name\":\"debug.network_test_time\",\"value\":15,\"type\":\"integer\",\"role\":\"admin\",\"comment\":\"Match duration time limit in minutes\"},\n"
-				"{\"name\":\"webhooks.discord\",\"value\":\"\",\"type\":\"string\",\"role\":\"admin\",\"comment\":\"Discord Webhook URL for match and ban notifications\"},\n"
-				"{\"name\":\"webhooks.telegram\",\"value\":\"\",\"type\":\"string\",\"role\":\"admin\",\"comment\":\"Telegram Bot webhook URL\"},\n"
-				"{\"name\":\"paths.logs\",\"value\":\"\",\"type\":\"string\",\"role\":\"owner\",\"comment\":\"Custom directory for debug.txt (Unraid/Docker)\"},\n"
+				"{\"name\":\"network.server_name\",\"value\":\"%s\",\"type\":\"string\",\"comment\":\"The name shown in the server browser\"},"
+				"{\"name\":\"network.tunnel_port\",\"value\":%lu,\"type\":\"integer\",\"comment\":\"The UDP port for internet play\"},"
+				"{\"name\":\"network.online\",\"value\":%s,\"type\":\"boolean\",\"comment\":\"Enable internet play\"},"
+				"{\"name\":\"network.host_public\",\"value\":%s,\"type\":\"boolean\",\"comment\":\"List the game in the server browser\"},"
+				"{\"name\":\"network.public_chat\",\"value\":%s,\"type\":\"boolean\",\"comment\":\"Allow text chat in public games\"},"
+				"{\"name\":\"network.map_rotation\",\"value\":\"%s\",\"type\":\"string\",\"choices\":[\"sequence\",\"shuffle\"],\"comment\":\"Playlist rotation mode\"},"
+				"{\"name\":\"network.map_voting\",\"value\":%s,\"type\":\"boolean\",\"comment\":\"Allow lobby map voting by chat\"},"
+				"{\"name\":\"network.afk_timeout\",\"value\":%lu,\"type\":\"integer\",\"comment\":\"AFK inactivity timeout in seconds\"},"
+				"{\"name\":\"server.region\",\"value\":\"%s\",\"type\":\"string\",\"role\":\"admin\",\"comment\":\"Server region label in server browser (eu, na-east, sa...)\"},"
+				"{\"name\":\"server.chat_filter\",\"value\":\"%s\",\"type\":\"string\",\"choices\":[\"off\",\"censor\",\"block\"],\"role\":\"moderator\",\"comment\":\"Moderation word filter for text chat and player names (off, censor, block)\"},"
+				"{\"name\":\"debug.network_test_countdown\",\"value\":%lu,\"type\":\"integer\",\"role\":\"admin\",\"comment\":\"Lobby countdown in seconds (0 = fast instant transitions)\"},"
+				"{\"name\":\"debug.network_test_time\",\"value\":%lu,\"type\":\"integer\",\"role\":\"admin\",\"comment\":\"Match duration time limit in minutes\"},"
+				"{\"name\":\"webhooks.discord\",\"value\":\"%s\",\"type\":\"string\",\"role\":\"admin\",\"comment\":\"Discord Webhook URL for match and ban notifications\"},"
+				"{\"name\":\"webhooks.telegram\",\"value\":\"%s\",\"type\":\"string\",\"role\":\"admin\",\"comment\":\"Telegram Bot webhook URL\"},"
+				"{\"name\":\"paths.logs\",\"value\":\"%s\",\"type\":\"string\",\"role\":\"owner\",\"comment\":\"Custom directory for debug.txt (Unraid/Docker)\"},"
 				"{\"name\":\"network.map_share\",\"value\":true,\"type\":\"boolean\",\"comment\":\"P2P torrent map sharing to new players\"},"
 				"{\"name\":\"network.map_share_upload\",\"value\":1024,\"type\":\"integer\",\"comment\":\"Max map sharing upload speed in KB/s\"},"
 				"{\"name\":\"network.coop_enemies_mode\",\"value\":\"per_player\",\"type\":\"string\",\"choices\":[\"none\",\"per_player\",\"multiplier\"],\"comment\":\"Scale campaign enemies per player\"},"
 				"{\"name\":\"network.coop_pickups\",\"value\":\"per_player\",\"type\":\"string\",\"choices\":[\"none\",\"per_player\",\"multiplier\"],\"comment\":\"Scale health and ammo packs per player\"},"
-				"{\"name\":\"network.coop_friendly_fire\",\"value\":\"on\",\"type\":\"string\",\"choices\":[\"off\",\"on\",\"shields_only\",\"explosives_only\"],\"comment\":\"Co-op friendly fire rule\"},"
-				"{\"name\":\"bots.count\",\"value\":0,\"type\":\"integer\",\"comment\":\"Multiplayer AI bots count (0 to 16)\"}"
-				"]}\n");
+				"{\"name\":\"network.coop_friendly_fire\",\"value\":\"on\",\"type\":\"string\",\"choices\":[\"off\",\"on\",\"shields_only\",\"explosives_only\"],\"comment\":\"Co-op friendly fire rule\"}"
+				"]}\n",
+				config_string("network.server_name")[0] ? config_string("network.server_name") : "JOCESLAB MX",
+				(unsigned long)config_integer("network.tunnel_port"),
+				config_boolean("network.online") ? "true" : "false",
+				config_boolean("network.host_public") ? "true" : "false",
+				config_boolean("network.public_chat") ? "true" : "false",
+				config_string("network.map_rotation"),
+				config_boolean("network.map_voting") ? "true" : "false",
+				(unsigned long)config_integer("network.afk_timeout"),
+				config_string("server.region")[0] ? config_string("server.region") : "na-east",
+				config_string("server.chat_filter")[0] ? config_string("server.chat_filter") : "off",
+				(unsigned long)config_integer("debug.network_test_countdown"),
+				(unsigned long)config_integer("debug.network_test_time"),
+				config_string("webhooks.discord"),
+				config_string("webhooks.telegram"),
+				config_string("paths.logs"));
+			send_json_object(client_fd, dyn_settings);
 			return 1;
 		}
 
-		/* /api/rotation */
+/* /api/rotation */
 		if (strcmp(path, "/api/rotation") == 0)
 		{
 			const char *test_spec = config_string("debug.network_test");
