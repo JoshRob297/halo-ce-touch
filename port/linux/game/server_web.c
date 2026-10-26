@@ -84,24 +84,27 @@ static void send_raw_response(int fd, int code, const char *status_text,
 
 static void send_json_data(int fd, const char *json_data)
 {
-	unsigned long len = json_data ? (unsigned long)strlen(json_data) : 0;
 	char header[256];
-	unsigned long total_len = len + 19; /* {"ok":true,"data":}\n */
-	int header_len = snprintf(header, sizeof(header),
+	char body[4096];
+	int body_len;
+	int header_len;
+
+	body_len = snprintf(body, sizeof(body), "{\"ok\":true,\"data\":%s}\n", json_data ? json_data : "null");
+	if (body_len <= 0)
+		return;
+
+	header_len = snprintf(header, sizeof(header),
 		"HTTP/1.1 200 OK\r\n"
 		"Content-Type: application/json\r\n"
-		"Content-Length: %lu\r\n"
+		"Content-Length: %d\r\n"
 		"Connection: close\r\n"
 		"Access-Control-Allow-Origin: *\r\n"
 		"\r\n",
-		total_len);
+		body_len);
 
 	if (header_len > 0)
 		(void)send(fd, header, (size_t)header_len, MSG_NOSIGNAL);
-	(void)send(fd, "{\"ok\":true,\"data\":", 18, MSG_NOSIGNAL);
-	if (json_data && len > 0)
-		(void)send(fd, json_data, (size_t)len, MSG_NOSIGNAL);
-	(void)send(fd, "}\n", 2, MSG_NOSIGNAL);
+	(void)send(fd, body, (size_t)body_len, MSG_NOSIGNAL);
 }
 
 int server_web_dispatch(int client_fd, const char *method, const char *path, const char *buffer, int received)
