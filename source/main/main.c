@@ -3608,7 +3608,17 @@ static boolean main_loop_iteration(
 			}
 			profile_scope_exit(main_network_start_frame_section)
 
-			profile_scope(main_update_time_section, main_update_time();)
+			/* port: a dedicated server's frames paced by its clock, with no
+			display to wait for (port/linux/src/server_mode.c) */
+			if (halo_server_mode())
+			{
+				server_mode_pace_frame();
+				profile_scope(main_update_time_section, main_update_time_unthrottled();)
+			}
+			else
+			{
+				profile_scope(main_update_time_section, main_update_time();)
+			}
 			profile_scope_enter(main_ui_update_section)
 			process_ui_widgets();
 			bink_playback_update();
@@ -3683,14 +3693,16 @@ static boolean main_loop_iteration(
 					profile_render_end();
 				}
 			}
-			else
+			/* port: nothing drawn on a dedicated server, nor waited for */
+			else if (!halo_server_mode())
 			{
 				profile_render_start();
 				main_pregame_render();
 				profile_render_end();
 			}
 
-			profile_scope(main_throttle_section, main_rasterizer_throttle();)
+			if (!halo_server_mode())
+				profile_scope(main_throttle_section, main_rasterizer_throttle();)
 
 			if (render_frame && !debug_no_drawing)
 			{

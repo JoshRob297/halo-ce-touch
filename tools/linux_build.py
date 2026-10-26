@@ -597,7 +597,7 @@ def generate_linux_build(n: Writer, sln: Any) -> None:
                 add_object(source, f"{posix_cflags} -I{MINIUPNPC_DIR / 'include'} -DMINIUPNP_STATICLIB", posix=True)
             elif source.name.startswith("posix_"):
                 add_object(source, posix_cflags, posix=True)
-            elif source.name == "updater.c":
+            elif source.name in ("updater.c", "server_mode.c"):
                 add_object(source, f"{platform_cflags} {updater_defines(getattr(sln, 'port_release', False))}")
             else:
                 add_object(source, platform_cflags)

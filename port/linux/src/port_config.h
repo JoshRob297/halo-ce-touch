@@ -38,4 +38,8 @@ int config_default(const char *name, char *text, size_t size);
 it again when this moves */
 unsigned long config_changes(void);
 
+/* whether this is a dedicated server (server.enabled, --server,
+HALO_SERVER: port/linux/src/server_mode.c), whose settings the file holds */
+int config_server_mode_enabled(void);
+
 #endif

@@ -12,6 +12,7 @@ it exists, so that the player's edits and comments stay.
 
 #include "platform.h"
 #include "port_config.h"
+#include "posix.h"
 #include "tomlc17.h"
 
 #include <SDL3/SDL.h>
@@ -689,6 +690,11 @@ static const struct config_setting config_settings[] =
 	{ "server.chat_filter_insults", _config_string, "\"off\"", "HALO_SERVER_CHAT_FILTER_INSULTS", _environment_value, _platform_all,
 		"With server.chat_filter, the insults that are not slurs kept out: \"off\",\n"
 		"\"severe\", \"strong\" or \"mild\" (all)." },
+	{ "server.publisher_key_file", _config_string, "\"publisher.key\"", "HALO_SERVER_PUBLISHER_KEY_FILE",
+		_environment_value, _platform_all,
+		"The operator's Ed25519 key for the master servers (halo --server\n"
+		"--keygen makes it), beside this file unless a full path.\n"
+		"HALO_SERVER_PUBLISHER_KEY holds the key itself for containers." },
 	{ "network.stun_servers", _config_string, "\"stun.l.google.com:19302,stun.cloudflare.com:3478\"",
 		"HALO_NET_STUN", _environment_value, _platform_all,
 		"Public STUN servers that tell this machine its internet address;\n"
@@ -2098,4 +2104,33 @@ const char *config_string(const char *name)
 	const char *string = config_value(name, _config_string)->string;
 
 	return string ? string : "";
+}
+
+int config_server_mode_enabled(void)
+{
+	static int server_mode = -1;
+
+	if (server_mode < 0)
+	{
+		char argument[1024];
+		const char *env;
+		int index;
+
+		server_mode = 0;
+		for (index = 1; posix_command_line_argument(index, argument, sizeof(argument)); index++)
+		{
+			if (!strcmp(argument, "--server"))
+			{
+				server_mode = 1;
+				break;
+			}
+		}
+		if (!server_mode)
+		{
+			env = getenv("HALO_SERVER");
+			if (env && (*env == '1' || *env == 't' || *env == 'T' || *env == 'y' || *env == 'Y'))
+				server_mode = 1;
+		}
+	}
+	return server_mode;
 }
