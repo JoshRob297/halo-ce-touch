@@ -164,7 +164,17 @@ int server_web_dispatch(int client_fd, const char *method, const char *path, con
 				"{\"name\":\"putput\",\"title\":\"Chiron TL-34\"},"
 				"{\"name\":\"ratrace\",\"title\":\"Rat Race\"},"
 				"{\"name\":\"sidewinder\",\"title\":\"Sidewinder\"},"
-				"{\"name\":\"wizard\",\"title\":\"Wizard\"}"
+				"{\"name\":\"wizard\",\"title\":\"Wizard\"},"
+				"{\"name\":\"a10\",\"title\":\"The Pillar of Autumn (Campaign)\"},"
+				"{\"name\":\"a30\",\"title\":\"Halo (Campaign)\"},"
+				"{\"name\":\"a50\",\"title\":\"Truth and Reconciliation (Campaign)\"},"
+				"{\"name\":\"b30\",\"title\":\"The Silent Cartographer (Campaign)\"},"
+				"{\"name\":\"b40\",\"title\":\"Assault on the Control Room (Campaign)\"},"
+				"{\"name\":\"c10\",\"title\":\"343 Guilty Spark (Campaign)\"},"
+				"{\"name\":\"c20\",\"title\":\"The Library (Campaign)\"},"
+				"{\"name\":\"c40\",\"title\":\"Two Betrayals (Campaign)\"},"
+				"{\"name\":\"d20\",\"title\":\"Keyes (Campaign)\"},"
+				"{\"name\":\"d40\",\"title\":\"The Maw (Campaign)\"}"
 				"]}\n");
 			return 1;
 		}
@@ -177,7 +187,7 @@ int server_web_dispatch(int client_fd, const char *method, const char *path, con
 				"\"slayer\",\"team_slayer\",\"ctf\",\"ironctf\",\"oddball\",\"team_oddball\","
 				"\"king\",\"team_king\",\"race\",\"team_race\",\"rally\","
 				"\"swat\",\"infection\",\"gun_game\",\"hardcore\",\"hardcore_ctf\","
-				"\"hardcore_oddball\",\"hardcore_king\""
+				"\"hardcore_oddball\",\"hardcore_king\",\"coop\""
 				"],\"files\":[]}\n");
 			return 1;
 		}
@@ -282,7 +292,13 @@ int server_web_dispatch(int client_fd, const char *method, const char *path, con
 				"{\"name\":\"network.public_chat\",\"value\":true,\"type\":\"boolean\",\"comment\":\"Allow text chat in public games\"},"
 				"{\"name\":\"network.map_rotation\",\"value\":\"shuffle\",\"type\":\"string\",\"choices\":[\"sequence\",\"shuffle\"],\"comment\":\"Playlist rotation mode\"},"
 				"{\"name\":\"network.map_voting\",\"value\":true,\"type\":\"boolean\",\"comment\":\"Allow lobby map voting by chat\"},"
-				"{\"name\":\"network.afk_timeout\",\"value\":180,\"type\":\"integer\",\"comment\":\"AFK inactivity timeout in seconds\"}"
+				"{\"name\":\"network.afk_timeout\",\"value\":180,\"type\":\"integer\",\"comment\":\"AFK inactivity timeout in seconds\"},"
+				"{\"name\":\"network.map_share\",\"value\":true,\"type\":\"boolean\",\"comment\":\"P2P torrent map sharing to new players\"},"
+				"{\"name\":\"network.map_share_upload\",\"value\":1024,\"type\":\"integer\",\"comment\":\"Max map sharing upload speed in KB/s\"},"
+				"{\"name\":\"network.coop_enemies_mode\",\"value\":\"per_player\",\"type\":\"string\",\"choices\":[\"none\",\"per_player\",\"multiplier\"],\"comment\":\"Scale campaign enemies per player\"},"
+				"{\"name\":\"network.coop_pickups\",\"value\":\"per_player\",\"type\":\"string\",\"choices\":[\"none\",\"per_player\",\"multiplier\"],\"comment\":\"Scale health and ammo packs per player\"},"
+				"{\"name\":\"network.coop_friendly_fire\",\"value\":\"on\",\"type\":\"string\",\"choices\":[\"off\",\"on\",\"shields_only\",\"explosives_only\"],\"comment\":\"Co-op friendly fire rule\"},"
+				"{\"name\":\"bots.count\",\"value\":0,\"type\":\"integer\",\"comment\":\"Multiplayer AI bots count (0 to 16)\"}"
 				"]}\n");
 			return 1;
 		}
