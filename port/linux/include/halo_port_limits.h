@@ -66,7 +66,7 @@ A host advertises it, with its netcode, in its game's advertisement's
 reserved bytes (network_server_message_handler.c), which hosts built before
 there was a version send as zeros: version 0.
 Raise it with any change to what the machines send each other. */
-#define HALO_PORT_NETWORK_VERSION 38
+#define HALO_PORT_NETWORK_VERSION 39
 /* ... the versions a client joins: its own, and those that differ from it
 only in what the other machine drops (a message of a kind it does not know,
 or a field of a message it does not read: network_distributed.c drops an
@@ -77,7 +77,7 @@ shield effects, the game's kind and the players' own shield effects) change
 fields a build that does not know them reads wrongly, so none of the older
 versions inter-plays with it yet; widen the range when one is verified to. */
 #define HALO_PORT_NETWORK_VERSION_MINIMUM 38
-#define HALO_PORT_NETWORK_VERSION_MAXIMUM 38
+#define HALO_PORT_NETWORK_VERSION_MAXIMUM 39
 /* ... the advertisement's reserved bytes: the version (a little-endian word),
 then flags, then the game's kind (an OpenCE gametype's mode, and Hardcore:
 port/linux/game/game_modes.h's game_modes_kind), for the server browser */
