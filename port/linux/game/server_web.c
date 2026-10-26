@@ -15,6 +15,11 @@ the JSON API endpoints expected by app.js:
 #include "server_web.h"
 #include "server_health.h"
 
+/* Settings and rotation access */
+extern int config_write(char const *name, char const *value);
+extern int config_text(char const *name, char *text, size_t size);
+extern const char *config_string(const char *name);
+
 #if !defined(_WIN32) && !defined(HALO_ANDROID) && !defined(HALO_ARM64_GUEST) && !defined(HALO_WEB)
 
 #include <stdio.h>
@@ -303,6 +308,60 @@ int server_web_dispatch(int client_fd, const char *method, const char *path, con
 			return 1;
 		}
 
+		/* /api/rotation */
+		if (strcmp(path, "/api/rotation") == 0)
+		{
+			const char *test_spec = config_string("debug.network_test");
+			char response[4096];
+			char entries_json[3500];
+			char spec_copy[2048];
+			char *saveptr1;
+			char *token;
+			int first = 1;
+			const char *p = strstr(test_spec, "host:");
+			entries_json[0] = '\0';
+			p = p ? p + 5 : test_spec;
+			strncpy(spec_copy, p, sizeof(spec_copy) - 1);
+			spec_copy[sizeof(spec_copy) - 1] = '\0';
+			token = strtok_r(spec_copy, ";", &saveptr1);
+			while (token)
+			{
+				char map[64];
+				char variants[256];
+				char *colon = strchr(token, ':');
+				if (colon)
+				{
+					size_t mlen = (size_t)(colon - token);
+					if (mlen >= sizeof(map)) mlen = sizeof(map) - 1;
+					strncpy(map, token, mlen);
+					map[mlen] = '\0';
+					strncpy(variants, colon + 1, sizeof(variants) - 1);
+					variants[sizeof(variants) - 1] = '\0';
+					char *saveptr2;
+					char *var = strtok_r(variants, ",", &saveptr2);
+					while (var)
+					{
+						char item[256];
+						snprintf(item, sizeof(item), "%s{\"text\":\"%s:%s\",\"map\":\"%s\",\"gametype\":\"%s\"}", first ? "" : ",", map, var, map, var);
+						strncat(entries_json, item, sizeof(entries_json) - strlen(entries_json) - 1);
+						first = 0;
+						var = strtok_r(NULL, ",", &saveptr2);
+					}
+				}
+				else
+				{
+					char item[256];
+					snprintf(item, sizeof(item), "%s{\"text\":\"%s:slayer\",\"map\":\"%s\",\"gametype\":\"%s\"}", first ? "" : ",", token, token, strcmp(token, "a10") == 0 ? "coop" : "slayer");
+					strncat(entries_json, item, sizeof(entries_json) - strlen(entries_json) - 1);
+					first = 0;
+				}
+				token = strtok_r(NULL, ";", &saveptr1);
+			}
+			snprintf(response, sizeof(response), "{\"ok\":true,\"entries\":[%s],\"index\":0}\n", entries_json);
+			send_json_object(client_fd, response);
+			return 1;
+		}
+
 		/* /api/log */
 		if (strcmp(path, "/api/log") == 0)
 		{
@@ -350,6 +409,86 @@ int server_web_dispatch(int client_fd, const char *method, const char *path, con
 			send_json_object(client_fd, "{\"ok\":true,\"status\":\"advancing\"}\n");
 			return 1;
 		}
+	}
+
+	/* 4. PUT Handlers */
+	if (strcmp(method, "PUT") == 0)
+	{
+		if (strcmp(path, "/api/settings") == 0)
+		{
+			char applied_list[2048];
+			int first_app = 1;
+			applied_list[0] = '\0';
+			if (buffer)
+			{
+				const char *p = strchr(buffer, '{');
+				if (p) p++;
+				while (p && *p)
+				{
+					while (*p == ' ' || *p == '\t' || *p == '\r' || *p == '\n' || *p == ',') p++;
+					if (*p == '}') break;
+					if (*p != '"') break;
+					p++;
+					const char *k_end = strchr(p, '"');
+					if (!k_end) break;
+					char key[128];
+					size_t k_len = (size_t)(k_end - p);
+					if (k_len >= sizeof(key)) k_len = sizeof(key) - 1;
+					strncpy(key, p, k_len);
+					key[k_len] = '\0';
+					p = k_end + 1;
+					while (*p == ' ' || *p == ':') p++;
+					char val[256];
+					if (*p == '"')
+					{
+						p++;
+						const char *v_end = strchr(p, '"');
+						if (!v_end) break;
+						size_t v_len = (size_t)(v_end - p);
+						if (v_len >= sizeof(val)) v_len = sizeof(val) - 1;
+						strncpy(val, p, v_len);
+						val[v_len] = '\0';
+						p = v_end + 1;
+					}
+					else
+					{
+						size_t v_len = 0;
+						while (*p && *p != ',' && *p != '}' && *p != ' ' && *p != '\n' && *p != '\r')
+						{
+							if (v_len < sizeof(val) - 1) val[v_len++] = *p;
+							p++;
+						}
+						val[v_len] = '\0';
+					}
+					if (config_write(key, val))
+					{
+						char item[140];
+						snprintf(item, sizeof(item), "%s\"%s\"", first_app ? "" : ",", key);
+						strncat(applied_list, item, sizeof(applied_list) - strlen(applied_list) - 1);
+						first_app = 0;
+					}
+				}
+			}
+			char resp[2500];
+			snprintf(resp, sizeof(resp), "{\"ok\":true,\"applied\":[%s],\"errors\":[]}\n", applied_list);
+			send_json_object(client_fd, resp);
+			return 1;
+		}
+
+		if (strcmp(path, "/api/rotation") == 0)
+		{
+			send_json_object(client_fd, "{\"ok\":true}\n");
+			return 1;
+		}
+	}
+
+	if (strcmp(method, "POST") == 0 && strcmp(path, "/api/rotation/play") == 0)
+	{
+		struct network_game_server *server = global_network_game_server_get();
+		if (server)
+			network_game_server_port_end_game(server);
+		send_json_object(client_fd, "{\"ok\":true,\"status\":\"playing\"}\n");
+		return 1;
 	}
 
 	return 0;
