@@ -899,11 +899,41 @@ function startPage(root) {
   function renderPickers() {
     const gametypes = page.gametypes;
     const builtin = builtinNames(gametypes.builtin);
-    $('add-map').replaceChildren(...page.maps.slice().sort((a, b) => titleOf(a).localeCompare(titleOf(b)))
-      .map((map) => option(mapToken(map), `${titleOf(map)} (${map.kind === 'custom' ? 'custom' : map.name})`)));
-    $('add-gametype').replaceChildren(
-      h('optgroup', { attrs: { label: 'Built-in' } }, builtin.map((name) => option(name, name))),
-      h('optgroup', { attrs: { label: 'Files' } }, (gametypes.files || []).map((file) => option(file.name, `${file.name} (${file.base})`))));
+    
+    // Separar mapas multijugador y misiones de campana
+    const isCampaign = (m) => /^([abcd]\d\d)$/i.test(m.name || '');
+    const multiMaps = page.maps.filter((m) => !isCampaign(m)).sort((a, b) => titleOf(a).localeCompare(titleOf(b)));
+    const campaignMaps = page.maps.filter(isCampaign).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+    $('add-map').replaceChildren(
+      h('optgroup', { attrs: { label: 'Multiplayer Maps' } },
+        multiMaps.map((map) => option(mapToken(map), `${titleOf(map)} (${map.kind === 'custom' ? 'custom' : map.name})`))),
+      h('optgroup', { attrs: { label: 'Campaign Co-op Missions' } },
+        campaignMaps.map((map) => option(mapToken(map), `${titleOf(map)} [${map.name}]`)))
+    );
+
+    // Filtro dinamico de modos de juego segun el mapa seleccionado
+    function updateGametypeOptions() {
+      const selectedMap = $('add-map').value;
+      const isCamp = /^([abcd]\d\d)$/i.test(selectedMap);
+      if (isCamp) {
+        // En campana solo se permite coop
+        $('add-gametype').replaceChildren(
+          h('optgroup', { attrs: { label: 'Campaign' } }, [option('coop', 'Co-op Campaign', true)])
+        );
+      } else {
+        // En multijugador se muestran todos los modos excepto coop
+        const multiBuiltins = builtin.filter((b) => b !== 'coop');
+        $('add-gametype').replaceChildren(
+          h('optgroup', { attrs: { label: 'Multiplayer Built-in' } }, multiBuiltins.map((name) => option(name, name))),
+          h('optgroup', { attrs: { label: 'Files' } }, (gametypes.files || []).map((file) => option(file.name, `${file.name} (${file.base})`)))
+        );
+      }
+    }
+
+    $('add-map').onchange = updateGametypeOptions;
+    updateGametypeOptions();
+
     $('new-base').replaceChildren(...builtin.map((name) => option(name, name)));
   }
 
