@@ -312,7 +312,37 @@ int server_web_dispatch(int client_fd, const char *method, const char *path, con
 		/* /api/players */
 		if (strcmp(path, "/api/players") == 0)
 		{
-			send_json_object(client_fd, "{\"ok\":true,\"players\":[]}\n");
+			struct network_game_server *server = global_network_game_server_get();
+			struct network_game *game = server ? network_game_server_get_game(server) : NULL;
+			char resp[4096];
+			char list[3500];
+			int first_p = 1;
+			int i;
+			list[0] = '\0';
+
+			if (game)
+			{
+				for (i = 0; i < 16; i++)
+				{
+					struct network_player *p = &game->players[i];
+					if (network_player_is_valid(p))
+					{
+						char name[32];
+						int c;
+						for (c = 0; c < 11 && p->name[c]; c++)
+							name[c] = (char)p->name[c];
+						name[c] = '\0';
+						char item[256];
+						snprintf(item, sizeof(item),
+							"%s{\"slot\":%d,\"name\":\"%s\",\"team\":%d,\"machine\":%d,\"score\":0}",
+							first_p ? "" : ",", i, name, (int)p->team_index, (int)p->machine_index);
+						strncat(list, item, sizeof(list) - strlen(list) - 1);
+						first_p = 0;
+					}
+				}
+			}
+			snprintf(resp, sizeof(resp), "{\"ok\":true,\"players\":[%s]}\n", list);
+			send_json_object(client_fd, resp);
 			return 1;
 		}
 
@@ -336,6 +366,11 @@ int server_web_dispatch(int client_fd, const char *method, const char *path, con
 				"{\"name\":\"network.map_rotation\",\"value\":\"shuffle\",\"type\":\"string\",\"choices\":[\"sequence\",\"shuffle\"],\"comment\":\"Playlist rotation mode\"},"
 				"{\"name\":\"network.map_voting\",\"value\":true,\"type\":\"boolean\",\"comment\":\"Allow lobby map voting by chat\"},"
 				"{\"name\":\"network.afk_timeout\",\"value\":180,\"type\":\"integer\",\"comment\":\"AFK inactivity timeout in seconds\"},"
+				"{\"name\":\"debug.network_test_countdown\",\"value\":5,\"type\":\"integer\",\"role\":\"admin\",\"comment\":\"Lobby countdown in seconds (0 = fast instant transitions)\"},\n"
+				"{\"name\":\"debug.network_test_time\",\"value\":15,\"type\":\"integer\",\"role\":\"admin\",\"comment\":\"Match duration time limit in minutes\"},\n"
+				"{\"name\":\"webhooks.discord\",\"value\":\"\",\"type\":\"string\",\"role\":\"admin\",\"comment\":\"Discord Webhook URL for match and ban notifications\"},\n"
+				"{\"name\":\"webhooks.telegram\",\"value\":\"\",\"type\":\"string\",\"role\":\"admin\",\"comment\":\"Telegram Bot webhook URL\"},\n"
+				"{\"name\":\"paths.logs\",\"value\":\"\",\"type\":\"string\",\"role\":\"owner\",\"comment\":\"Custom directory for debug.txt (Unraid/Docker)\"},\n"
 				"{\"name\":\"network.map_share\",\"value\":true,\"type\":\"boolean\",\"comment\":\"P2P torrent map sharing to new players\"},"
 				"{\"name\":\"network.map_share_upload\",\"value\":1024,\"type\":\"integer\",\"comment\":\"Max map sharing upload speed in KB/s\"},"
 				"{\"name\":\"network.coop_enemies_mode\",\"value\":\"per_player\",\"type\":\"string\",\"choices\":[\"none\",\"per_player\",\"multiplier\"],\"comment\":\"Scale campaign enemies per player\"},"
