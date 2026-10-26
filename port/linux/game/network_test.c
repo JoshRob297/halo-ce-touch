@@ -506,6 +506,83 @@ boolean network_test_handle_map_vote(
 	return FALSE;
 }
 
+static void network_test_apply_map_and_variant(
+	void)
+{
+	char path[128];
+	char variant_name[64];
+	struct game_variant variant;
+
+	if (!global_network_game_server_get())
+		return;
+
+	if (strchr(network_test.map_name, '\\'))
+		snprintf(path, sizeof(path), "%s", network_test.map_name);
+	else
+		snprintf(path, sizeof(path), "levels\\test\\%s\\%s", network_test.map_name, network_test.map_name);
+	network_test_variant(network_test.variant_index, variant_name, sizeof(variant_name));
+
+	network_game_server_port_set_minimum_players(global_network_game_server_get(), 1);
+	network_game_server_port_set_minimum_machines(global_network_game_server_get(), 1);
+	if (!strcmp(variant_name, "coop"))
+	{
+		extern boolean ui_widget_port_cooperative_level_choose(char const *map_name, short difficulty);
+
+		if (!ui_widget_port_cooperative_level_choose(path, _game_difficulty_level_normal))
+			platform_log("network test: %s is not a campaign level, for co-op", path);
+		platform_log("network test: game %d, co-op", network_test.variant_index + 1);
+	}
+	else
+	{
+		struct game_variant_options options;
+		boolean opence = game_modes_gametype_by_name(variant_name, &variant, &options);
+
+		network_game_server_change_map_name(global_network_game_server_get(), path);
+		if (!opence)
+			variant = *game_engine_get_variant_by_name(&variant, variant_name);
+		if (!opence && variant.universal_variant.teams &&
+			network_game_server_port_player_count(global_network_game_server_get()) < 2)
+		{
+			long index;
+			char candidate[64];
+
+			for (index = 0; network_test_variant(index, candidate, sizeof(candidate)); index++)
+			{
+				struct game_variant other =
+					*game_engine_get_variant_by_name(&variant, candidate);
+
+				if (!other.universal_variant.teams)
+				{
+					variant = other;
+					snprintf(variant_name, sizeof(variant_name), "%s", candidate);
+					break;
+				}
+			}
+		}
+		platform_log("network test: game %d, %s on %s", network_test.variant_index + 1,
+			variant_name, network_test.map_name);
+		if (network_test.score_to_win > 0)
+			variant.universal_variant.score_to_win = network_test.score_to_win;
+		player_ui_set_game_variant(&variant);
+		if (opence)
+			player_ui_set_game_variant_options(&options);
+		else
+		{
+			struct game_variant_options options;
+
+			game_variant_options_default(&variant, &options);
+			if (network_test.time_limit > 0)
+				options.time_limit = (short)network_test.time_limit;
+			player_ui_set_game_variant_options(&options);
+		}
+		network_game_server_change_game_variant(global_network_game_server_get(), &variant);
+		if (network_test.time_limit > 0)
+			network_game_server_port_set_time_limit(global_network_game_server_get(),
+				network_test.time_limit);
+	}
+	network_test.map_set = TRUE;
+}
+
 static void network_test_map_voting_finalize(
 	void)
 {
@@ -542,6 +619,7 @@ static void network_test_map_voting_finalize(
 			max_votes, max_votes == 1 ? "" : "s");
 		distributed_send_notice(notice);
 		network_test_select_flat_index(network_map_vote.candidate_flat_indices[winner]);
+		network_test_apply_map_and_variant();
 	}
 
 	network_map_vote.active = FALSE;
@@ -2025,100 +2103,7 @@ void network_test_update(
 			if (!network_test.map_set && network_test.setup_seconds >= 1.0f && global_network_game_server_get())
 			{
 				network_test_map_voting_announce();
-				char path[128];
-				char variant_name[64];
-				struct game_variant variant;
-
-				/* (a level of its own path, else a multiplayer map's name) */
-				if (strchr(network_test.map_name, '\\'))
-					snprintf(path, sizeof(path), "%s", network_test.map_name);
-				else
-					snprintf(path, sizeof(path), "levels\\test\\%s\\%s", network_test.map_name, network_test.map_name);
-				network_test_variant(network_test.variant_index, variant_name, sizeof(variant_name));
-				/* port: a host that names maps plays on its own too, so a server
-				the list is given starts the game it advertises with nobody on it
-				(the countdown needs the players a game asks for, and the Xbox
-				game's own is two) */
-				network_game_server_port_set_minimum_players(global_network_game_server_get(), 1);
-				/* port: and one machine: the host's own (it plays on its own, so
-				the list moves on with nobody on the server) */
-				network_game_server_port_set_minimum_machines(global_network_game_server_get(), 1);
-				if (!strcmp(variant_name, "coop"))
-				{
-					/* (the Map screen's co-op: menu_functions.c) */
-					extern boolean ui_widget_port_cooperative_level_choose(char const *map_name, short difficulty);
-
-					if (!ui_widget_port_cooperative_level_choose(path, _game_difficulty_level_normal))
-						platform_log("network test: %s is not a campaign level, for co-op", path);
-					platform_log("network test: game %d, co-op", network_test.variant_index + 1);
-				}
-				else
-				{
-					struct game_variant_options options;
-					/* (one of OpenCE's gametypes by its name: game_modes.c) */
-					boolean opence = game_modes_gametype_by_name(variant_name, &variant, &options);
-
-					network_game_server_change_map_name(global_network_game_server_get(), path);
-					/* the variant, as picking the game settings does */
-					if (!opence)
-						variant = *game_engine_get_variant_by_name(&variant, variant_name);
-					/* port: a variant with teams asks for a player on each one
-					(server_needs_more_teams), which a host nobody is on cannot give:
-					its countdown would be held for ever and the list would stand still.
-					The map's first variant without teams plays instead (the list's own
-					pick comes back with players). An OpenCE gametype keeps its teams:
-					they are the gametype's own. */
-					if (!opence && variant.universal_variant.teams &&
-						network_game_server_port_player_count(global_network_game_server_get()) < 2)
-					{
-						long index;
-						char candidate[64];
-
-						for (index = 0; network_test_variant(index, candidate, sizeof(candidate)); index++)
-						{
-							struct game_variant other =
-								*game_engine_get_variant_by_name(&variant, candidate);
-
-							if (!other.universal_variant.teams)
-							{
-								variant = other;
-								snprintf(variant_name, sizeof(variant_name), "%s", candidate);
-								break;
-							}
-						}
-					}
-					platform_log("network test: game %d, %s on %s", network_test.variant_index + 1,
-						variant_name, network_test.map_name);
-					/* debug.network_test_score: a short game, to test the next */
-					if (network_test.score_to_win > 0)
-						variant.universal_variant.score_to_win = network_test.score_to_win;
-					player_ui_set_game_variant(&variant);
-					if (opence)
-						player_ui_set_game_variant_options(&options);
-					else
-					{
-						/* debug.network_test_time: the gametype's options carry the time
-						limit and a built-in variant's own is none (0), so a game whose
-						score nobody reaches never ends and the list stands still. The
-						call above reset the options to the variant's, so they are given
-						here, before the server reads them for its clients. */
-						struct game_variant_options options;
-
-						game_variant_options_default(&variant, &options);
-						if (network_test.time_limit > 0)
-							options.time_limit = (short)network_test.time_limit;
-						player_ui_set_game_variant_options(&options);
-					}
-					network_game_server_change_game_variant(global_network_game_server_get(), &variant);
-					/* port: debug.network_test_time as the game's own limit: the
-					game's options come from the server (its pregame data), and a
-					built-in variant's time limit is none, so a game whose score
-					nobody reaches would never end and the list would stand still */
-					if (network_test.time_limit > 0)
-						network_game_server_port_set_time_limit(global_network_game_server_get(),
-							network_test.time_limit);
-				}
-				network_test.map_set = TRUE;
+				network_test_apply_map_and_variant();
 			}
 
 			if (!network_test.player_added && network_test.add_player &&
