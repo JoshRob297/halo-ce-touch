@@ -141,7 +141,7 @@ int server_web_dispatch(int client_fd, const char *method, const char *path, con
 		/* /api/session */
 		if (strcmp(path, "/api/session") == 0)
 		{
-			send_json_data(client_fd, "{\"role\":\"owner\",\"authenticated\":true,\"csrf_token\":\"local\"}");
+			send_json_data(client_fd, "{\"role\":\"owner\",\"authenticated\":true,\"csrf\":\"local\"}");
 			return 1;
 		}
 
@@ -171,34 +171,28 @@ int server_web_dispatch(int client_fd, const char *method, const char *path, con
 		if (strcmp(path, "/api/gametypes") == 0)
 		{
 			send_json_data(client_fd,
-				"{\"gametypes\":["
-				"{\"name\":\"slayer\",\"title\":\"Slayer\"},"
-				"{\"name\":\"ctf\",\"title\":\"Capture The Flag\"},"
-				"{\"name\":\"oddball\",\"title\":\"Oddball\"},"
-				"{\"name\":\"king\",\"title\":\"King of the Hill\"},"
-				"{\"name\":\"race\",\"title\":\"Race\"},"
-				"{\"name\":\"swat\",\"title\":\"SWAT\"},"
-				"{\"name\":\"infection\",\"title\":\"Infection\"},"
-				"{\"name\":\"gun_game\",\"title\":\"Gun Game\"},"
-				"{\"name\":\"hardcore\",\"title\":\"Hardcore Slayer\"},"
-				"{\"name\":\"hardcore_ctf\",\"title\":\"Hardcore CTF\"},"
-				"{\"name\":\"hardcore_oddball\",\"title\":\"Hardcore Oddball\"},"
-				"{\"name\":\"hardcore_king\",\"title\":\"Hardcore King\"}"
-				"]}");
+				"{\"builtin\":["
+				"\"slayer\",\"team_slayer\",\"ctf\",\"ironctf\",\"oddball\",\"team_oddball\","
+				"\"king\",\"team_king\",\"race\",\"team_race\",\"rally\","
+				"\"swat\",\"infection\",\"gun_game\",\"hardcore\",\"hardcore_ctf\","
+				"\"hardcore_oddball\",\"hardcore_king\""
+				"],\"files\":[]}");
 			return 1;
 		}
 
 		/* /api/rotation */
 		if (strcmp(path, "/api/rotation") == 0)
 		{
-			char const *rot_spec = config_string("debug.network_test");
-			char *json_buf = (char *)malloc(2048);
-			if (json_buf)
-			{
-				snprintf(json_buf, 2048, "{\"spec\":\"%s\"}", rot_spec ? rot_spec : "");
-				send_json_data(client_fd, json_buf);
-				free(json_buf);
-			}
+			send_json_data(client_fd,
+				"{\"entries\":["
+				"{\"text\":\"bloodgulch:gun_game\",\"map\":\"bloodgulch\",\"gametype\":\"gun_game\"},"
+				"{\"text\":\"chillout:infection\",\"map\":\"chillout\",\"gametype\":\"infection\"},"
+				"{\"text\":\"damnation:swat\",\"map\":\"damnation\",\"gametype\":\"swat\"},"
+				"{\"text\":\"hangemhigh:hardcore_slayer\",\"map\":\"hangemhigh\",\"gametype\":\"hardcore_slayer\"},"
+				"{\"text\":\"sidewinder:hardcore_ctf\",\"map\":\"sidewinder\",\"gametype\":\"hardcore_ctf\"},"
+				"{\"text\":\"beavercreek:hardcore_oddball\",\"map\":\"beavercreek\",\"gametype\":\"hardcore_oddball\"},"
+				"{\"text\":\"wizard:hardcore_king\",\"map\":\"wizard\",\"gametype\":\"hardcore_king\"}"
+				"],\"index\":0,\"next\":{\"text\":\"chillout:infection\"}}");
 			return 1;
 		}
 
@@ -233,6 +227,8 @@ int server_web_dispatch(int client_fd, const char *method, const char *path, con
 					"\"network_version\":38,"
 					"\"frame_ms_max\":3.5,"
 					"\"tick_ms_avg\":1.2,"
+					"\"rotation\":{\"index\":0,\"next\":{\"text\":\"chillout:infection\"}},"
+					"\"masters\":[],"
 					"\"listing\":{"
 					"\"online\":true,"
 					"\"public\":true,"
@@ -273,7 +269,17 @@ int server_web_dispatch(int client_fd, const char *method, const char *path, con
 		/* /api/settings */
 		if (strcmp(path, "/api/settings") == 0)
 		{
-			send_json_data(client_fd, "{\"settings\":[]}");
+			send_json_data(client_fd,
+				"{\"settings\":["
+				"{\"name\":\"network.server_name\",\"value\":\"JOCES 24/7 CUSTOM\",\"type\":\"string\",\"comment\":\"The name shown in the server browser\"},"
+				"{\"name\":\"network.tunnel_port\",\"value\":2302,\"type\":\"integer\",\"comment\":\"The UDP port for internet play\"},"
+				"{\"name\":\"network.online\",\"value\":true,\"type\":\"boolean\",\"comment\":\"Enable internet play\"},"
+				"{\"name\":\"network.host_public\",\"value\":true,\"type\":\"boolean\",\"comment\":\"List the game in the server browser\"},"
+				"{\"name\":\"network.public_chat\",\"value\":true,\"type\":\"boolean\",\"comment\":\"Allow text chat in public games\"},"
+				"{\"name\":\"network.map_rotation\",\"value\":\"shuffle\",\"type\":\"string\",\"choices\":[\"sequence\",\"shuffle\"],\"comment\":\"Playlist rotation mode\"},"
+				"{\"name\":\"network.map_voting\",\"value\":true,\"type\":\"boolean\",\"comment\":\"Allow lobby map voting by chat\"},"
+				"{\"name\":\"network.afk_timeout\",\"value\":180,\"type\":\"integer\",\"comment\":\"AFK inactivity timeout in seconds\"}"
+				"]}");
 			return 1;
 		}
 
