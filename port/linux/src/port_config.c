@@ -668,7 +668,9 @@ static const struct config_setting config_settings[] =
 		"Discord webhook URL for server event notifications (matches, carnage, bans); empty disables." },
 	{ "webhooks.telegram", _config_string, "\"\"", "HALO_WEBHOOK_TELEGRAM", _environment_value, _platform_all,
 		"Telegram webhook URL for server event notifications; empty disables." },
-{ "network.health_port", _config_integer, "0", "HALO_NET_HEALTH_PORT", _environment_value, _platform_all,
+{ "network.public_address", _config_string, """", "HALO_NET_PUBLIC_ADDRESS", _environment_value, _platform_all,
+		"Hosting: the internet address joiners reach this machine at as host:port; empty uses STUN." },
+	{ "network.health_port", _config_integer, "0", "HALO_NET_HEALTH_PORT", _environment_value, _platform_all,
 		"TCP port for the HTTP health endpoint (GET /health returns the state,\n"
 		"the map, the players and the minutes left as JSON). 0 turns it off.\n"
 		"Bind to 0.0.0.0, so a container publishes it; it serves no other path.\n" },
@@ -690,6 +692,16 @@ static const struct config_setting config_settings[] =
 	{ "server.chat_filter_insults", _config_string, "\"off\"", "HALO_SERVER_CHAT_FILTER_INSULTS", _environment_value, _platform_all,
 		"With server.chat_filter, the insults that are not slurs kept out: \"off\",\n"
 		"\"severe\", \"strong\" or \"mild\" (all)." },
+	{ "server.list_on_brokers", _config_boolean, "true", "HALO_SERVER_LIST_ON_BROKERS", _environment_value, _platform_all,
+		"Also list the server among the games players host (through brokers) for browsers with no master." },
+	{ "server.frame_rate", _config_integer, "30", "HALO_SERVER_FRAME_RATE", _environment_value, _platform_all,
+		"Target tickrate of the dedicated server." },
+	{ "server.master_publish", _config_boolean, "true", "HALO_SERVER_MASTER_PUBLISH", _environment_value, _platform_all,
+		"Publish a public server to the official master servers, signed with the publisher key." },
+	{ "server.masters_file", _config_string, "\"masters.txt\"", "HALO_SERVER_MASTERS_FILE", _environment_value, _platform_all,
+		"The master servers published to; none named defaults to official master." },
+	{ "server.master_publish_address", _config_boolean, "false", "HALO_SERVER_MASTER_PUBLISH_ADDRESS", _environment_value, _platform_all,
+		"Let the master servers give this server's address to players; false: only their probe uses it." },
 	{ "server.publisher_key_file", _config_string, "\"publisher.key\"", "HALO_SERVER_PUBLISHER_KEY_FILE",
 		_environment_value, _platform_all,
 		"The operator's Ed25519 key for the master servers (halo --server\n"

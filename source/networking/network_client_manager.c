@@ -3309,3 +3309,20 @@ boolean network_game_client_set_team(
 	return success;
 }
 
+
+boolean network_game_client_advertised_game_dedicated(
+	struct network_game_client *client,
+	struct network_advertised_game const *game)
+{
+	(void)client;
+	(void)game;
+	return FALSE;
+}
+
+void network_game_client_tell_version(
+	unsigned int theirs,
+	boolean distributed)
+{
+	(void)theirs;
+	(void)distributed;
+}

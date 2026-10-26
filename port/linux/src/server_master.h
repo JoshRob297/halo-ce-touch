@@ -13,6 +13,8 @@ never holds the game.
 #ifndef __HALO_LINUX_SERVER_MASTER_H
 #define __HALO_LINUX_SERVER_MASTER_H
 
+struct server_json;
+
 enum
 {
 	SERVER_MASTER_PUBLIC_KEY_SIZE = 32,
@@ -32,5 +34,37 @@ int server_master_sign_text(const char *text);
 /* the publisher key (HALO_SERVER_PUBLISHER_KEY, else the file): 1 with its
 public key and id (16 hex) */
 int server_master_publisher(unsigned char *public_key, char *key_id);
+
+/* the publishing thread started (server.master_publish, with masters and
+a key) */
+void server_master_start(void);
+/* a player's host (not a dedicated server's): published as above while it
+hosts a public internet game, when this machine has a publisher key and
+masters.txt names masters (docs/master_protocol.md); nothing otherwise */
+void server_master_start_host(void);
+/* the game's state to publish (the director's, as it changes): its JSON
+object's members (name, map, gametype, variant, players, ...); changed
+asks for a publish within 5 seconds */
+void server_master_set_state(const char *members, int changed);
+/* the hosted game changed (p2p_lobby.c: public or not, its players, its
+name or map): a publish within 5 seconds, as for a changed state */
+void server_master_changed(void);
+/* the listings withdrawn as the server stops (a tombstone to each master:
+2 seconds at most) */
+void server_master_stop(void);
+
+/* a datagram the tunnel's socket received (p2p.c) from the address (IPv4,
+network byte order): 1 if it was a master's probe to answer, its answer (at
+most 128 bytes) then in answer, to be sent back to where it came from */
+int server_master_probe(const unsigned char *data, int size, unsigned long address, unsigned char *answer,
+	int *answer_size);
+
+/* the name the masters know this server by: server.instance as published
+(else a slug of server.name), and the publisher key's id (16 hex; empty
+without a key), as the start read them */
+void server_master_identity(char *instance, int instance_size, char *key_id, int key_id_size);
+
+/* each master's state, for the status (masters[]) */
+void server_master_status(struct server_json *json);
 
 #endif
