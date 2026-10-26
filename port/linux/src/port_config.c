@@ -467,7 +467,9 @@ static const struct config_setting config_settings[] =
 		"The folder holding the game data's maps folder; empty looks in the\n"
 		"working directory and its assets folder. Windows paths are easiest in\n"
 		"single quotes: 'C:\\Games\\Halo'." },
-	{ "paths.saves", _config_string, "\"\"", "HALO_SAVE_ROOT", _environment_value, _platform_desktop,
+		{ "paths.logs", _config_string, "\"\"", "HALO_LOG_DIR", _environment_value, _platform_desktop,
+		"Directory where debug.txt and debug.old.txt are stored; empty uses the data root folder." },
+{ "paths.saves", _config_string, "\"\"", "HALO_SAVE_ROOT", _environment_value, _platform_desktop,
 		"Where saved games and profiles go; empty for the usual place\n"
 		"(~/.local/share/halo-linux, or %APPDATA%\\halo on Windows)." },
 	{ "paths.custom_edition", _config_string, "\"\"", "HALO_CUSTOM_EDITION_ROOT", _environment_value, _platform_desktop,
@@ -661,7 +663,11 @@ static const struct config_setting config_settings[] =
 	{ "network.escalating_bans", _config_boolean, "true", "HALO_NET_ESCALATING_BANS", _environment_set_is_true, _platform_all,
 		"Progressive ban durations: strike 1 = 1 hour, strike 2 = 24 hours,\n"
 		"strike 3 = 7 days, strike 4+ = permanent. False uses permanent bans only." },
-	{ "network.health_port", _config_integer, "0", "HALO_NET_HEALTH_PORT", _environment_value, _platform_all,
+		{ "webhooks.discord", _config_string, "\"\"", "HALO_WEBHOOK_DISCORD", _environment_value, _platform_all,
+		"Discord webhook URL for server event notifications (matches, carnage, bans); empty disables." },
+	{ "webhooks.telegram", _config_string, "\"\"", "HALO_WEBHOOK_TELEGRAM", _environment_value, _platform_all,
+		"Telegram webhook URL for server event notifications; empty disables." },
+{ "network.health_port", _config_integer, "0", "HALO_NET_HEALTH_PORT", _environment_value, _platform_all,
 		"TCP port for the HTTP health endpoint (GET /health returns the state,\n"
 		"the map, the players and the minutes left as JSON). 0 turns it off.\n"
 		"Bind to 0.0.0.0, so a container publishes it; it serves no other path.\n" },
