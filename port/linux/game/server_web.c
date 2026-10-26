@@ -82,17 +82,16 @@ static void send_raw_response(int fd, int code, const char *status_text,
 	}
 }
 
-static void send_json_data(int fd, const char *json_data)
+static void send_json_object(int fd, const char *json_object)
 {
 	char header[256];
-	char body[4096];
 	int body_len;
 	int header_len;
 
-	body_len = snprintf(body, sizeof(body), "{\"ok\":true,\"data\":%s}\n", json_data ? json_data : "null");
-	if (body_len <= 0)
-		return;
+	if (!json_object)
+		json_object = "{\"ok\":true}\n";
 
+	body_len = (int)strlen(json_object);
 	header_len = snprintf(header, sizeof(header),
 		"HTTP/1.1 200 OK\r\n"
 		"Content-Type: application/json\r\n"
@@ -104,7 +103,7 @@ static void send_json_data(int fd, const char *json_data)
 
 	if (header_len > 0)
 		(void)send(fd, header, (size_t)header_len, MSG_NOSIGNAL);
-	(void)send(fd, body, (size_t)body_len, MSG_NOSIGNAL);
+	(void)send(fd, json_object, (size_t)body_len, MSG_NOSIGNAL);
 }
 
 int server_web_dispatch(int client_fd, const char *method, const char *path, const char *buffer, int received)
@@ -144,58 +143,59 @@ int server_web_dispatch(int client_fd, const char *method, const char *path, con
 		/* /api/session */
 		if (strcmp(path, "/api/session") == 0)
 		{
-			send_json_data(client_fd, "{\"role\":\"owner\",\"authenticated\":true,\"csrf\":\"local\"}");
+			send_json_object(client_fd, "{\"ok\":true,\"role\":\"owner\",\"authenticated\":true,\"csrf\":\"local\"}\n");
 			return 1;
 		}
 
 		/* /api/maps */
 		if (strcmp(path, "/api/maps") == 0)
 		{
-			send_json_data(client_fd,
-				"{\"maps\":["
+			send_json_object(client_fd,
+				"{\"ok\":true,\"maps\":["
+				"{\"name\":\"beavercreek\",\"title\":\"Battle Creek\"},"
 				"{\"name\":\"bloodgulch\",\"title\":\"Blood Gulch\"},"
+				"{\"name\":\"boardingaction\",\"title\":\"Boarding Action\"},"
+				"{\"name\":\"carousel\",\"title\":\"Derelict\"},"
 				"{\"name\":\"chillout\",\"title\":\"Chill Out\"},"
 				"{\"name\":\"damnation\",\"title\":\"Damnation\"},"
 				"{\"name\":\"hangemhigh\",\"title\":\"Hang 'Em High\"},"
-				"{\"name\":\"prisoner\",\"title\":\"Prisoner\"},"
-				"{\"name\":\"sidewinder\",\"title\":\"Sidewinder\"},"
-				"{\"name\":\"beavercreek\",\"title\":\"Battle Creek\"},"
-				"{\"name\":\"boardingaction\",\"title\":\"Boarding Action\"},"
-				"{\"name\":\"carousel\",\"title\":\"Derelict\"},"
 				"{\"name\":\"longest\",\"title\":\"Longest\"},"
+				"{\"name\":\"prisoner\",\"title\":\"Prisoner\"},"
 				"{\"name\":\"putput\",\"title\":\"Chiron TL-34\"},"
 				"{\"name\":\"ratrace\",\"title\":\"Rat Race\"},"
+				"{\"name\":\"sidewinder\",\"title\":\"Sidewinder\"},"
 				"{\"name\":\"wizard\",\"title\":\"Wizard\"}"
-				"]}");
+				"]}\n");
 			return 1;
 		}
 
 		/* /api/gametypes */
 		if (strcmp(path, "/api/gametypes") == 0)
 		{
-			send_json_data(client_fd,
-				"{\"builtin\":["
+			send_json_object(client_fd,
+				"{\"ok\":true,\"builtin\":["
 				"\"slayer\",\"team_slayer\",\"ctf\",\"ironctf\",\"oddball\",\"team_oddball\","
 				"\"king\",\"team_king\",\"race\",\"team_race\",\"rally\","
 				"\"swat\",\"infection\",\"gun_game\",\"hardcore\",\"hardcore_ctf\","
 				"\"hardcore_oddball\",\"hardcore_king\""
-				"],\"files\":[]}");
+				"],\"files\":[]}\n");
 			return 1;
 		}
 
 		/* /api/rotation */
 		if (strcmp(path, "/api/rotation") == 0)
 		{
-			send_json_data(client_fd,
-				"{\"entries\":["
-				"{\"text\":\"bloodgulch:gun_game\",\"map\":\"bloodgulch\",\"gametype\":\"gun_game\"},"
+			send_json_object(client_fd,
+				"{\"ok\":true,\"entries\":["
+				"{\"text\":\"beavercreek:gun_game\",\"map\":\"beavercreek\",\"gametype\":\"gun_game\"},"
+				"{\"text\":\"wizard:gun_game\",\"map\":\"wizard\",\"gametype\":\"gun_game\"},"
 				"{\"text\":\"chillout:infection\",\"map\":\"chillout\",\"gametype\":\"infection\"},"
 				"{\"text\":\"damnation:swat\",\"map\":\"damnation\",\"gametype\":\"swat\"},"
-				"{\"text\":\"hangemhigh:hardcore_slayer\",\"map\":\"hangemhigh\",\"gametype\":\"hardcore_slayer\"},"
-				"{\"text\":\"sidewinder:hardcore_ctf\",\"map\":\"sidewinder\",\"gametype\":\"hardcore_ctf\"},"
-				"{\"text\":\"beavercreek:hardcore_oddball\",\"map\":\"beavercreek\",\"gametype\":\"hardcore_oddball\"},"
-				"{\"text\":\"wizard:hardcore_king\",\"map\":\"wizard\",\"gametype\":\"hardcore_king\"}"
-				"],\"index\":0,\"next\":{\"text\":\"chillout:infection\"}}");
+				"{\"text\":\"prisoner:hardcore_slayer\",\"map\":\"prisoner\",\"gametype\":\"hardcore_slayer\"},"
+				"{\"text\":\"longest:swat\",\"map\":\"longest\",\"gametype\":\"swat\"},"
+				"{\"text\":\"putput:infection\",\"map\":\"putput\",\"gametype\":\"infection\"},"
+				"{\"text\":\"hangemhigh:gun_game\",\"map\":\"hangemhigh\",\"gametype\":\"gun_game\"}"
+				"],\"index\":0,\"next\":{\"text\":\"wizard:gun_game\"}}\n");
 			return 1;
 		}
 
@@ -213,6 +213,7 @@ int server_web_dispatch(int client_fd, const char *method, const char *path, con
 			{
 				snprintf(json_buf, 2048,
 					"{"
+					"\"ok\":true,"
 					"\"name\":\"%s\","
 					"\"state\":\"%s\","
 					"\"map\":\"%s\","
@@ -230,7 +231,7 @@ int server_web_dispatch(int client_fd, const char *method, const char *path, con
 					"\"network_version\":38,"
 					"\"frame_ms_max\":3.5,"
 					"\"tick_ms_avg\":1.2,"
-					"\"rotation\":{\"index\":0,\"next\":{\"text\":\"chillout:infection\"}},"
+					"\"rotation\":{\"index\":0,\"next\":{\"text\":\"wizard:gun_game\"}},"
 					"\"masters\":[],"
 					"\"listing\":{"
 					"\"online\":true,"
@@ -238,10 +239,10 @@ int server_web_dispatch(int client_fd, const char *method, const char *path, con
 					"\"password\":false,"
 					"\"invite\":\"%s\""
 					"}"
-					"}",
+					"}\n",
 					snap.server_name[0] ? snap.server_name : "JOCES 24/7 CUSTOM",
 					state_str,
-					snap.map[0] ? snap.map : "bloodgulch",
+					snap.map[0] ? snap.map : "beavercreek",
 					snap.variant[0] ? snap.variant : "Gun Game",
 					(unsigned long)(snap.state == 1 ? 45 : 0),
 					snap.players,
@@ -249,7 +250,7 @@ int server_web_dispatch(int client_fd, const char *method, const char *path, con
 					snap.uptime_seconds,
 					snap.invite);
 
-				send_json_data(client_fd, json_buf);
+				send_json_object(client_fd, json_buf);
 				free(json_buf);
 			}
 			return 1;
@@ -258,22 +259,22 @@ int server_web_dispatch(int client_fd, const char *method, const char *path, con
 		/* /api/players */
 		if (strcmp(path, "/api/players") == 0)
 		{
-			send_json_data(client_fd, "{\"players\":[]}");
+			send_json_object(client_fd, "{\"ok\":true,\"players\":[]}\n");
 			return 1;
 		}
 
 		/* /api/bans */
 		if (strcmp(path, "/api/bans") == 0)
 		{
-			send_json_data(client_fd, "{\"bans\":[]}");
+			send_json_object(client_fd, "{\"ok\":true,\"bans\":[]}\n");
 			return 1;
 		}
 
 		/* /api/settings */
 		if (strcmp(path, "/api/settings") == 0)
 		{
-			send_json_data(client_fd,
-				"{\"settings\":["
+			send_json_object(client_fd,
+				"{\"ok\":true,\"settings\":["
 				"{\"name\":\"network.server_name\",\"value\":\"JOCES 24/7 CUSTOM\",\"type\":\"string\",\"comment\":\"The name shown in the server browser\"},"
 				"{\"name\":\"network.tunnel_port\",\"value\":2302,\"type\":\"integer\",\"comment\":\"The UDP port for internet play\"},"
 				"{\"name\":\"network.online\",\"value\":true,\"type\":\"boolean\",\"comment\":\"Enable internet play\"},"
@@ -282,21 +283,21 @@ int server_web_dispatch(int client_fd, const char *method, const char *path, con
 				"{\"name\":\"network.map_rotation\",\"value\":\"shuffle\",\"type\":\"string\",\"choices\":[\"sequence\",\"shuffle\"],\"comment\":\"Playlist rotation mode\"},"
 				"{\"name\":\"network.map_voting\",\"value\":true,\"type\":\"boolean\",\"comment\":\"Allow lobby map voting by chat\"},"
 				"{\"name\":\"network.afk_timeout\",\"value\":180,\"type\":\"integer\",\"comment\":\"AFK inactivity timeout in seconds\"}"
-				"]}");
+				"]}\n");
 			return 1;
 		}
 
 		/* /api/log */
 		if (strcmp(path, "/api/log") == 0)
 		{
-			send_json_data(client_fd, "{\"cursor\":0,\"lines\":[]}");
+			send_json_object(client_fd, "{\"ok\":true,\"cursor\":0,\"lines\":[]}\n");
 			return 1;
 		}
 
 		/* /api/events */
 		if (strcmp(path, "/api/events") == 0)
 		{
-			send_json_data(client_fd, "{\"events\":[]}");
+			send_json_object(client_fd, "{\"ok\":true,\"events\":[]}\n");
 			return 1;
 		}
 	}
@@ -321,7 +322,7 @@ int server_web_dispatch(int client_fd, const char *method, const char *path, con
 					}
 				}
 			}
-			send_json_data(client_fd, "{\"lines\":[\"command executed\"]}");
+			send_json_object(client_fd, "{\"ok\":true,\"lines\":[\"command executed\"]}\n");
 			return 1;
 		}
 
@@ -330,7 +331,7 @@ int server_web_dispatch(int client_fd, const char *method, const char *path, con
 			struct network_game_server *server = global_network_game_server_get();
 			if (server)
 				network_game_server_port_end_game(server);
-			send_json_data(client_fd, "{\"status\":\"advancing\"}");
+			send_json_object(client_fd, "{\"ok\":true,\"status\":\"advancing\"}\n");
 			return 1;
 		}
 	}
