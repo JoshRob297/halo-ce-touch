@@ -366,6 +366,8 @@ int server_web_dispatch(int client_fd, const char *method, const char *path, con
 				"{\"name\":\"network.map_rotation\",\"value\":\"shuffle\",\"type\":\"string\",\"choices\":[\"sequence\",\"shuffle\"],\"comment\":\"Playlist rotation mode\"},"
 				"{\"name\":\"network.map_voting\",\"value\":true,\"type\":\"boolean\",\"comment\":\"Allow lobby map voting by chat\"},"
 				"{\"name\":\"network.afk_timeout\",\"value\":180,\"type\":\"integer\",\"comment\":\"AFK inactivity timeout in seconds\"},"
+				"{\"name\":\"server.region\",\"value\":\"eu\",\"type\":\"string\",\"role\":\"admin\",\"comment\":\"Server region label in server browser (eu, na-east, sa...)\"},\n"
+				"{\"name\":\"server.chat_filter\",\"value\":\"off\",\"type\":\"string\",\"choices\":[\"off\",\"censor\",\"block\"],\"role\":\"moderator\",\"comment\":\"Moderation word filter for text chat and player names (off, censor, block)\"},\n"
 				"{\"name\":\"debug.network_test_countdown\",\"value\":5,\"type\":\"integer\",\"role\":\"admin\",\"comment\":\"Lobby countdown in seconds (0 = fast instant transitions)\"},\n"
 				"{\"name\":\"debug.network_test_time\",\"value\":15,\"type\":\"integer\",\"role\":\"admin\",\"comment\":\"Match duration time limit in minutes\"},\n"
 				"{\"name\":\"webhooks.discord\",\"value\":\"\",\"type\":\"string\",\"role\":\"admin\",\"comment\":\"Discord Webhook URL for match and ban notifications\"},\n"

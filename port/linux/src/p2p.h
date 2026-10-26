@@ -154,6 +154,8 @@ struct p2p_listing
 	(port/linux/game/game_modes.h's game_modes_kind) */
 	unsigned char kind;
 	unsigned char open, in_progress, has_teams;
+	unsigned char dedicated;
+	char region[17];
 	/* joining it failed this run (p2p_lobby_mark_failed) */
 	unsigned char failed;
 	/* milliseconds, -1 if not known */
