@@ -152,6 +152,27 @@ static void make_directories(const char *path)
 		posix_make_directory(partial);
 }
 
+
+const char *platform_log_root(void)
+{
+	static char root[MAX_PATH];
+	if (!root[0])
+	{
+		const char *env = config_string("paths.logs");
+		if (*env)
+		{
+			snprintf(root, sizeof(root), "%s", env);
+			trim_separators(root);
+			make_directories(root);
+		}
+		else
+		{
+			snprintf(root, sizeof(root), "%s", platform_data_root());
+		}
+	}
+	return root;
+}
+
 const char *platform_save_root(void)
 {
 	static char root[MAX_PATH];
@@ -265,6 +286,14 @@ void platform_translate_path(const char *xbox_path, char *host_path, unsigned lo
 	const char *cursor = xbox_path;
 	unsigned long length;
 
+		/* Redirect log files (debug.txt, debug.old.txt) to custom log root if set */
+	if (cursor && (strcasecmp(cursor, "d:\\debug.txt") == 0 || strcasecmp(cursor, "d:\\debug.old.txt") == 0 ||
+	               strcasecmp(cursor, "debug.txt") == 0 || strcasecmp(cursor, "debug.old.txt") == 0))
+	{
+		const char *fname = (strrchr(cursor, '\\') ? strrchr(cursor, '\\') + 1 : cursor);
+		snprintf(host_path, host_path_size, "%s/%s", platform_log_root(), fname);
+		return;
+	}
 	snprintf(resolved, sizeof(resolved), "%s", platform_data_root());
 	if (((cursor[0] >= 'a' && cursor[0] <= 'z') || (cursor[0] >= 'A' && cursor[0] <= 'Z')) && cursor[1] == ':')
 	{

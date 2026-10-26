@@ -145,6 +145,44 @@ int server_web_dispatch(int client_fd, const char *method, const char *path, con
 	/* 2. REST API Endpoints */
 	if (strcmp(method, "GET") == 0)
 	{
+		
+		/* /metrics (Prometheus / OpenMetrics Exporter) */
+		if (strcmp(path, "/metrics") == 0)
+		{
+			struct network_game_server *server = global_network_game_server_get();
+			int active_players = server ? (int)network_game_server_port_player_count(server) : 0;
+			int max_players = 16;
+			int minutes_left = 15;
+			const char *curr_map = "beavercreek";
+			const char *curr_variant = "gun_game";
+			char metrics_buf[2048];
+
+			snprintf(metrics_buf, sizeof(metrics_buf),
+				"# HELP halo_server_info Information about the dedicated server\n"
+				"# TYPE halo_server_info gauge\n"
+				"halo_server_info{version=\"1.2.2\",netcode=\"38\",map=\"%s\",gametype=\"%s\"} 1\n"
+				"# HELP halo_players_active Number of active connected players\n"
+				"# TYPE halo_players_active gauge\n"
+				"halo_players_active %d\n"
+				"# HELP halo_players_max Maximum player capacity of the server\n"
+				"# TYPE halo_players_max gauge\n"
+				"halo_players_max %d\n"
+				"# HELP halo_match_minutes_remaining Remaining match duration in minutes\n"
+				"# TYPE halo_match_minutes_remaining gauge\n"
+				"halo_match_minutes_remaining %d\n"
+				"# HELP halo_server_tickrate_hz Target server simulation tickrate\n"
+				"# TYPE halo_server_tickrate_hz gauge\n"
+				"halo_server_tickrate_hz 30.0\n",
+				curr_map ? curr_map : "none",
+				curr_variant ? curr_variant : "none",
+				active_players,
+				max_players,
+				minutes_left);
+
+			send_raw_response(client_fd, 200, "OK", "text/plain; version=0.0.4; charset=utf-8", metrics_buf, strlen(metrics_buf));
+			return 1;
+		}
+
 		/* /api/session */
 		if (strcmp(path, "/api/session") == 0)
 		{
