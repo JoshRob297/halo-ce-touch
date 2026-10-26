@@ -4187,8 +4187,27 @@ static void lobby_browser_update(struct widget_instance *list)
 		/* (its host's ping, once probed: p2p_lobby.c) */
 		browser_row_pings[index - lobby_browser.first] = game->failed ? -1 : game->ping;
 		usnprintf(text, ROW_TEXT_LENGTH - 1, L"%d", game->ping);
-		text_set(named(row, "server_item_ping", 0), game->failed ? L"FAILED" : game->ping >= 0 ? text :
-			!game->open ? L"CLOSED" : game->in_progress ? L"LIVE" : L"-");
+		const char *srv_region = config_string("server.region");
+		if (game->region[0])
+		{
+			wchar_t reg_w[32];
+			text_to_wide(game->region, reg_w, NUMBEROF(reg_w));
+			text_set(named(row, "server_item_ping", 0), reg_w);
+		}
+		else if (game->dedicated && srv_region && srv_region[0])
+		{
+			wchar_t reg_w[32];
+			text_to_wide(srv_region, reg_w, NUMBEROF(reg_w));
+			/* Pasar a mayusculas (EU, NA-EAST) */
+			int ci;
+			for (ci = 0; reg_w[ci]; ci++) if (reg_w[ci] >= 'a' && reg_w[ci] <= 'z') reg_w[ci] -= 32;
+			text_set(named(row, "server_item_ping", 0), reg_w);
+		}
+		else
+		{
+			text_set(named(row, "server_item_ping", 0), game->failed ? L"FAILED" : game->ping >= 0 ? text :
+				!game->open ? L"CLOSED" : game->in_progress ? L"LIVE" : L"-");
+		}
 		/* (the lock: a game with a password. Its bitmap's first frame is
 		empty, the PC version's for no lock; the next is the lock, in the
 		menus' blue) */
@@ -4199,7 +4218,12 @@ static void lobby_browser_update(struct widget_instance *list)
 			if (lock)
 				lock->animation.current_frame_index = 1;
 		}
-		visible_set(named(row, "server_item_dedicated", 0), FALSE);
+		{
+			struct widget_instance *dedicated_icon = named(row, "server_item_dedicated", 0);
+			visible_set(dedicated_icon, game->dedicated);
+			if (dedicated_icon)
+				dedicated_icon->animation.current_frame_index = 1;
+		}
 		visible_set(named(row, "server_item_classic", 0), FALSE);
 	}
 	/* joining: once the host is reached, its game joined (by an A press, on

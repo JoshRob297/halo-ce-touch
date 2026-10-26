@@ -55,8 +55,10 @@ Xbox kernel does.
 #define CONTIGUOUS_PAGE_COUNT (PLATFORM_CONTIGUOUS_SIZE / PAGE_SIZE_BYTES)
 
 /* per page: 0 free, otherwise the protection of the block (PAGE_*); the
-first page of a block also records the block length. As many as the largest
-window has (platform.h); CONTIGUOUS_PAGE_COUNT is this one's */
+first page of a block also records the block length */
+#ifndef PLATFORM_CONTIGUOUS_MAXIMUM
+#define PLATFORM_CONTIGUOUS_MAXIMUM (512UL * 1024UL * 1024UL)
+#endif
 static DWORD page_protection[PLATFORM_CONTIGUOUS_MAXIMUM / PAGE_SIZE_BYTES];
 static unsigned long block_page_count[PLATFORM_CONTIGUOUS_MAXIMUM / PAGE_SIZE_BYTES];
 static BOOL arena_reserved = FALSE;
@@ -310,6 +312,11 @@ void xbox_address_out_of_range(void const *pointer)
 #endif
 }
 #endif /* HALO_WINDOW_TRANSLATED */
+
+void *halo_custom_edition_tag_cache(void)
+{
+	return (void *)0x40440000UL;
+}
 
 BOOL platform_is_contiguous(const void *address)
 {

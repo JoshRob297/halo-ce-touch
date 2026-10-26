@@ -671,6 +671,24 @@ static const struct config_setting config_settings[] =
 		"TCP port for the HTTP health endpoint (GET /health returns the state,\n"
 		"the map, the players and the minutes left as JSON). 0 turns it off.\n"
 		"Bind to 0.0.0.0, so a container publishes it; it serves no other path.\n" },
+	{ "server.region", _config_string, "\"\"", "HALO_SERVER_REGION", _environment_value, _platform_all,
+		"A region shown in the server browser (eu, na-east, sa...): 16 characters;\n"
+		"empty for none." },
+	{ "server.chat_filter", _config_string, "\"off\"", "HALO_SERVER_CHAT_FILTER", _environment_value, _platform_all,
+		"The words the server keeps out of its chat and its players' names\n"
+		"(streamer mode's list, by chat_filter_slurs, _swearing and _insults):\n"
+		"\"off\"; \"censor\", a line's words shown as stars; \"block\", a line\n"
+		"with them refused (its sender is told why) and a player whose name has\n"
+		"them refused at the door. Links are network.text_chat's." },
+	{ "server.chat_filter_slurs", _config_string, "\"mild\"", "HALO_SERVER_CHAT_FILTER_SLURS", _environment_value, _platform_all,
+		"With server.chat_filter, the slurs (race, sexuality, gender, disability)\n"
+		"kept out: \"off\", \"severe\" (the worst), \"strong\" or \"mild\" (all)." },
+	{ "server.chat_filter_swearing", _config_string, "\"off\"", "HALO_SERVER_CHAT_FILTER_SWEARING", _environment_value, _platform_all,
+		"With server.chat_filter, the swearing and sexual words kept out: \"off\",\n"
+		"\"severe\", \"strong\" or \"mild\" (all)." },
+	{ "server.chat_filter_insults", _config_string, "\"off\"", "HALO_SERVER_CHAT_FILTER_INSULTS", _environment_value, _platform_all,
+		"With server.chat_filter, the insults that are not slurs kept out: \"off\",\n"
+		"\"severe\", \"strong\" or \"mild\" (all)." },
 	{ "network.stun_servers", _config_string, "\"stun.l.google.com:19302,stun.cloudflare.com:3478\"",
 		"HALO_NET_STUN", _environment_value, _platform_all,
 		"Public STUN servers that tell this machine its internet address;\n"
@@ -1619,6 +1637,10 @@ static const struct
 	{ "network.shield_effects", { "stock", "glow", "light_show", "overshield", "glow_overshield",
 		"light_show_overshield", "players", NULL }, NULL },
 	{ "network.coop_enemies_mode", { "none", "per_player", "multiplier", NULL }, NULL },
+	{ "server.chat_filter", { "off", "censor", "block", NULL }, NULL },
+	{ "server.chat_filter_slurs", { "off", "severe", "strong", "mild", NULL }, NULL },
+	{ "server.chat_filter_swearing", { "off", "severe", "strong", "mild", NULL }, NULL },
+	{ "server.chat_filter_insults", { "off", "severe", "strong", "mild", NULL }, NULL },
 	{ "network.map_rotation", { "sequence", "shuffle", NULL }, NULL },
 	{ "streamer.slurs", { "off", "severe", "strong", "mild", NULL }, NULL },
 	{ "streamer.swearing", { "off", "severe", "strong", "mild", NULL }, NULL },

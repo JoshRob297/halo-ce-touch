@@ -82,6 +82,8 @@ enum
 	_listing_closed = 8,
 	/* its token sealed with a password's key */
 	_listing_password = 16,
+	/* dedicated server flag */
+	_listing_dedicated = 32,
 	STAMP_SIZE = 8,
 	/* the signed part's end: everything but the signature */
 	MAXIMUM_LISTING_SIZE = 2 + 1 + 2 + 1 + 4 + 4 + P2P_KEY_SIZE + P2P_SEALED_TOKEN_SIZE + 3 +
@@ -289,6 +291,8 @@ static int listing_make(unsigned char *bytes, int flags)
 
 	if (lobby.has_password && !(flags & _listing_closed))
 		flags |= _listing_password;
+	if (!(flags & _listing_closed))
+		flags |= _listing_dedicated;
 	bytes[size++] = 'H';
 	bytes[size++] = 'L';
 	bytes[size++] = LISTING_FORMAT;
@@ -676,6 +680,8 @@ static void listing_take(const struct queued *queued, const struct listing *list
 	shown->open = (listing->flags & _listing_open) != 0;
 	shown->in_progress = (listing->flags & _listing_in_progress) != 0;
 	shown->has_teams = (listing->flags & _listing_has_teams) != 0;
+	shown->dedicated = (listing->flags & _listing_dedicated) != 0;
+	shown->region[0] = '\0';
 }
 
 /* the hosts' pings: those not known lately probed, while there is room (a

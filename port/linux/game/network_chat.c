@@ -1211,6 +1211,97 @@ static void chat_send_to_clients(
 /* (the host) a player's line, sent on to every machine that hears it (and
 the sender's) and shown here if a player of this machine's hears it or said
 it */
+/* ---------- the server's word filter (server.chat_filter) */
+
+enum
+{
+	_chat_filter_off,
+	_chat_filter_censor,
+	_chat_filter_block
+};
+
+/* server.chat_filter's mode (in either case; anything else: off) */
+static short chat_filter_mode(
+	char const *setting)
+{
+	if (setting && chat_names_equal(setting, "censor"))
+		return _chat_filter_censor;
+	if (setting && chat_names_equal(setting, "block"))
+		return _chat_filter_block;
+	return _chat_filter_off;
+}
+
+/* a group's level: the least severity kept out ("mild" keeps out every term of the group) */
+static unsigned char chat_filter_level(
+	char const *setting)
+{
+	if (setting && chat_names_equal(setting, "mild"))
+		return _text_filter_mild;
+	if (setting && chat_names_equal(setting, "strong"))
+		return _text_filter_strong;
+	if (setting && chat_names_equal(setting, "severe"))
+		return _text_filter_severe;
+	return _text_filter_off;
+}
+
+/* a line's marked characters as stars, in place */
+static void chat_filter_star(
+	char *text,
+	unsigned char const *marked,
+	long length)
+{
+	long index;
+
+	for (index = 0; index < length && text[index]; index++)
+	{
+		if (marked[index] && text[index] != ' ')
+			text[index] = '*';
+	}
+}
+
+/* (the host) the filter's mode */
+static short chat_filter_mode_now(
+	void)
+{
+	return chat_filter_mode(config_string("server.chat_filter"));
+}
+
+/* which characters of an ASCII text are the filter's words */
+static long chat_filter_marks(
+	char const *text,
+	unsigned char *marked)
+{
+	unsigned short units[CHAT_TEXT_SIZE];
+	unsigned char levels[NUMBER_OF_TEXT_FILTER_GROUPS];
+	long length;
+
+	for (length = 0; length < CHAT_TEXT_SIZE && text[length]; length++)
+		units[length] = (unsigned char)text[length];
+	if (!length)
+		return 0;
+	levels[_text_filter_slurs] = chat_filter_level(config_string("server.chat_filter_slurs"));
+	levels[_text_filter_swearing] = chat_filter_level(config_string("server.chat_filter_swearing"));
+	levels[_text_filter_insults] = chat_filter_level(config_string("server.chat_filter_insults"));
+	levels[_text_filter_own] = _text_filter_off;
+	return text_filter_censor(units, length, TRUE, levels, marked);
+}
+
+boolean network_chat_name_blocked(
+	wchar_t const *name,
+	short length)
+{
+	char text[CHAT_TEXT_SIZE];
+	unsigned char marked[CHAT_TEXT_SIZE];
+	short index;
+
+	if (chat_filter_mode_now() != _chat_filter_block)
+		return FALSE;
+	for (index = 0; index < length && index < CHAT_TEXT_SIZE - 1 && name[index]; index++)
+		text[index] = name[index] >= ' ' && name[index] <= '~' ? (char)name[index] : ' ';
+	text[index] = 0;
+	return chat_filter_marks(text, marked) > 0;
+}
+
 static void chat_host_send(
 	short player_index,
 	short channel,
@@ -1469,6 +1560,21 @@ void network_chat_handle_up(
 	{
 		chat_host_notice(machine_index, refused);
 		return;
+	}
+	/* chat filter moderacion */
+	{
+		short mode = chat_filter_mode_now();
+		unsigned char marked[CHAT_TEXT_SIZE];
+
+		if (mode != _chat_filter_off && chat_filter_marks(text, marked) > 0)
+		{
+			if (mode == _chat_filter_block)
+			{
+				chat_host_notice(machine_index, "Your line was not sent: it has words this server does not allow");
+				return;
+			}
+			chat_filter_star(text, marked, CHAT_TEXT_SIZE);
+		}
 	}
 	chat_host_send(line.player_index, chat_channel_from_flags(line.flags), text);
 }
