@@ -1,241 +1,1365 @@
-<!doctype html>
-<html lang="en">
+<!DOCTYPE html>
+<html lang="es">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="referrer" content="same-origin">
-<meta name="color-scheme" content="dark light">
-<title>OpenCE server</title>
-<link rel="icon" href="icon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="app.css">
-<script src="app.js" defer></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Halo CE Dedicated // JOCESLAB MX</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Teko:wght@500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #2b333a;
+      --accent: #e2e8f0;
+      --accent-bright: #ffffff;
+      --accent-dim: rgba(255, 255, 255, 0.08);
+      --panel-bg: linear-gradient(180deg, rgba(38, 46, 54, 0.88) 0%, rgba(22, 27, 32, 0.94) 100%);
+      --panel-border: rgba(226, 232, 240, 0.28);
+      --panel-bevel: rgba(255, 255, 255, 0.25);
+      --text: #f8fafc;
+      --text-muted: #cbd5e1;
+      --text-dim: #94a3b8;
+      --green: #10b981;
+      --green-dim: rgba(16, 185, 129, 0.16);
+      --amber: #f59e0b;
+      --amber-dim: rgba(245, 158, 11, 0.16);
+      --red: #ef4444;
+      --red-dim: rgba(239, 68, 68, 0.16);
+      --font-display: 'Teko', sans-serif;
+      --font-mono: 'Share Tech Mono', monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+    body {
+      background-color: var(--bg);
+      background-image: var(--theme-glow), var(--theme-texture);
+      background-size: var(--theme-size, 100% 100%, 36px 36px);
+      background-repeat: no-repeat, repeat;
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: 13px;
+      line-height: 1.45;
+      min-height: 100vh;
+      width: 100%;
+      position: relative;
+    }
+
+    .bg-watermark {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: min(72vw, 440px);
+      height: min(72vw, 440px);
+      pointer-events: none;
+      z-index: 1;
+      color: var(--logo-color, #f8fafc);
+      opacity: var(--logo-opacity, 0.22);
+      filter: drop-shadow(0 0 24px var(--accent));
+      transition: all 0.25s ease;
+    }
+
+    .dashboard-container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 16px 20px;
+      position: relative;
+      z-index: 2;
+    }
+
+    /* HEADER LIMPIO */
+    .hud-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 18px;
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      border-radius: 4px;
+      margin-bottom: 14px;
+      box-shadow: inset 0 1px 0 0 var(--panel-bevel), 0 4px 16px rgba(0,0,0,0.5);
+    }
+
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .brand-logo {
+      width: 40px;
+      height: 40px;
+      color: var(--accent);
+      filter: drop-shadow(0 0 8px var(--accent));
+      flex-shrink: 0;
+    }
+
+    .brand-text h1 {
+      font-family: var(--font-display);
+      font-size: 22px;
+      letter-spacing: 0.06em;
+      line-height: 1;
+      color: #ffffff;
+      text-transform: uppercase;
+    }
+
+    .brand-text .sub {
+      font-size: 11px;
+      color: var(--accent);
+      letter-spacing: 0.08em;
+    }
+
+    /* NAVEGACIÓN SUPERIOR 44px */
+    .nav-tabs {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      white-space: nowrap;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+      margin-bottom: 14px;
+      padding-bottom: 2px;
+    }
+    .nav-tabs::-webkit-scrollbar { display: none; }
+
+    .nav-tab {
+      min-height: 44px;
+      flex: 0 0 auto;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      font-family: var(--font-display);
+      font-size: clamp(14px, 3.8vw, 17px);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding: 6px 14px;
+      background: rgba(0, 0, 0, 0.45);
+      border: 1px solid var(--panel-border);
+      color: var(--text-muted);
+      cursor: pointer;
+      text-align: center;
+      border-radius: 3px;
+      transition: all 0.15s ease;
+      user-select: none;
+    }
+    .nav-badge {
+      display: inline-block;
+      background: var(--accent-dim);
+      border: 1px solid var(--panel-border);
+      color: var(--accent-bright);
+      padding: 1px 7px;
+      font-size: 12px;
+      border-radius: 10px;
+      font-family: var(--font-mono);
+      line-height: 1.2;
+    }
+    .nav-tab:hover {
+      background: rgba(255, 255, 255, 0.06);
+      color: #ffffff;
+    }
+    .nav-tab.active {
+      border-color: var(--accent);
+      color: #ffffff;
+      background: var(--accent-dim);
+      font-weight: bold;
+      box-shadow: inset 0 -2px 0 0 var(--accent), 0 0 10px var(--accent-dim);
+    }
+
+    .tab-panel {
+      display: none;
+    }
+    .tab-panel.active {
+      display: block;
+    }
+
+    .hud-box {
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      padding: 16px;
+      position: relative;
+      margin-bottom: 14px;
+      box-shadow: inset 0 1px 0 0 var(--panel-bevel), 0 6px 20px rgba(0, 0, 0, 0.55);
+      border-radius: 4px;
+    }
+
+    .hud-box::before {
+      content: "";
+      position: absolute;
+      top: -1px; left: -1px;
+      width: 8px; height: 8px;
+      border-top: 2px solid var(--accent);
+      border-left: 2px solid var(--accent);
+    }
+    .hud-box::after {
+      content: "";
+      position: absolute;
+      bottom: -1px; right: -1px;
+      width: 8px; height: 8px;
+      border-bottom: 2px solid var(--accent);
+      border-right: 2px solid var(--accent);
+    }
+
+    .box-title {
+      font-family: var(--font-display);
+      font-size: 18px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--accent);
+      margin-bottom: 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px dashed var(--panel-border);
+      padding-bottom: 6px;
+    }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 1.6fr 1.2fr 1fr;
+      gap: 16px;
+      align-items: center;
+    }
+    .hero-stat {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .hero-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .hero-val-main {
+      font-family: var(--font-display);
+      font-size: 36px;
+      line-height: 1;
+      color: #ffffff;
+      letter-spacing: 0.04em;
+    }
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: bold;
+      color: #ffffff;
+      background: rgba(255, 255, 255, 0.08);
+      padding: 4px 10px;
+      border-radius: 3px;
+      border: 1px solid var(--panel-border);
+      width: fit-content;
+      margin-top: 4px;
+    }
+
+    .health-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+    .health-card {
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid var(--panel-border);
+      padding: 12px 14px;
+      border-radius: 3px;
+    }
+    .health-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+    .health-val {
+      font-family: var(--font-display);
+      font-size: 24px;
+      line-height: 1;
+      color: #ffffff;
+    }
+    .health-sub {
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-top: 3px;
+    }
+
+    .hud-btn {
+      min-height: 44px;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      padding: 10px 18px;
+      background: var(--accent-dim);
+      border: 1px solid var(--accent);
+      color: #ffffff;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      border-radius: 3px;
+      box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.15);
+      transition: all 0.15s;
+    }
+    .hud-btn:hover {
+      background: var(--accent);
+      color: #0b0f14;
+      box-shadow: 0 0 14px var(--accent);
+    }
+
+    .hud-btn-red {
+      border-color: var(--red);
+      color: #fca5a5;
+      background: var(--red-dim);
+    }
+    .hud-btn-red:hover {
+      background: var(--red);
+      color: #ffffff;
+      box-shadow: 0 0 14px var(--red);
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 2px;
+      text-transform: uppercase;
+      font-weight: bold;
+    }
+    .status-green { background: var(--green-dim); color: #34d399; border: 1px solid var(--green); }
+    .status-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+
+    /* TABLAS Y FORMULARIOS */
+    .hud-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 8px;
+    }
+    .hud-table th {
+      text-align: left;
+      font-size: 11px;
+      color: var(--accent);
+      border-bottom: 1px solid var(--panel-border);
+      padding: 8px;
+      text-transform: uppercase;
+    }
+    .hud-table td {
+      padding: 10px 8px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      font-size: 12px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+    .form-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+    .form-input {
+      background: rgba(0, 0, 0, 0.6);
+      border: 1px solid var(--panel-border);
+      color: #ffffff;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      padding: 10px 12px;
+      border-radius: 3px;
+      outline: none;
+    }
+    .form-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 8px var(--accent-dim);
+    }
+
+    .cli-terminal {
+      background: rgba(0, 0, 0, 0.85);
+      border: 1px solid var(--panel-border);
+      padding: 12px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: #38bdf8;
+      height: 260px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      border-radius: 3px;
+    }
+
+    .config-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    .config-card {
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid var(--panel-border);
+      padding: 14px 16px;
+      border-radius: 3px;
+    }
+    .config-card-title {
+      font-size: 12px;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 8px;
+      font-weight: bold;
+    }
+    .theme-select-custom {
+      width: 100%;
+      appearance: none;
+      -webkit-appearance: none;
+      background: rgba(0, 0, 0, 0.7);
+      border: 1px solid var(--accent);
+      color: #ffffff;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      padding: 10px 14px;
+      border-radius: 3px;
+      cursor: pointer;
+      outline: none;
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      background-size: 12px;
+    }
+
+    .toast-msg {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid var(--accent);
+      color: #ffffff;
+      padding: 10px 16px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      border-radius: 4px;
+      display: none;
+      z-index: 100;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.8);
+    }
+
+    @media (max-width: 768px) {
+      .nav-tabs { grid-template-columns: repeat(3, 1fr); }
+      .hero-grid { grid-template-columns: 1fr; }
+      .health-grid { grid-template-columns: 1fr 1fr; }
+      .config-grid { grid-template-columns: 1fr; }
+    }
+  </style>
 </head>
 <body>
-<div id="login" class="login" hidden>
-  <form id="login-form" class="panel login-panel">
-    <div class="login-head"><img src="icon.svg" alt="" width="52" height="52"><h1>OpenCE server</h1></div>
-    <label for="login-password">Password</label>
-    <input id="login-password" type="password" autocomplete="current-password" required>
-    <p id="login-error" class="error" role="alert"></p>
-    <button type="submit" class="primary" id="login-button">Sign in</button>
-    <p class="note">server.web_password (admin) or server.web_moderator_password (moderator). The page keeps no
-      password: the session is a cookie for 12 hours, or 30 minutes unused.</p>
-  </form>
-</div>
+  <div class="bg-watermark" id="bg-watermark-icon"></div>
+  <div class="toast-msg" id="hud-toast"></div>
 
-<div id="app" hidden>
-  <header class="top">
-    <img src="icon.svg" alt="" width="34" height="34">
-    <h1 id="server-name">OpenCE server</h1>
-    <span id="server-state" class="badge"></span>
-    <span class="top-end">
-      <span id="link-state" class="badge" title="How the page hears from the server"></span>
-      <span id="role" class="badge"></span>
-      <button id="logout" class="small">Sign out</button>
-    </span>
-  </header>
-  <nav class="tabs" role="tablist" aria-label="Sections">
-    <button role="tab" data-tab="status">Status</button>
-    <button role="tab" data-tab="players">Players</button>
-    <button role="tab" data-tab="rotation">Rotation</button>
-    <button role="tab" data-tab="gametypes">Gametypes</button>
-    <button role="tab" data-tab="bans" data-needs="admin">Bans</button>
-    <button role="tab" data-tab="console">Console</button>
-    <button role="tab" data-tab="settings" data-needs="admin">Settings</button>
-    <button role="tab" data-tab="about">About</button>
-  </nav>
-
-  <main>
-    <section id="tab-status" class="tab" role="tabpanel" hidden>
-      <div class="grid">
-        <div class="panel">
-          <h2>Game</h2>
-          <dl id="status-facts" class="facts"></dl>
-        </div>
-        <div class="panel">
-          <h2>Players</h2>
-          <p class="count"><span id="status-count">0</span><span class="of"> of <span id="status-max">0</span></span></p>
-          <svg id="spark" class="spark" viewBox="0 0 300 64" preserveAspectRatio="none" role="img"
-            aria-label="Players over the last 10 minutes"><polyline id="spark-fill" class="spark-fill" points=""/><polyline id="spark-line" class="spark-line" points=""/></svg>
-          <p class="note" id="spark-note">The last 10 minutes, as this page saw them.</p>
-          <h2>Actions</h2>
-          <div class="bar">
-            <button id="next-map" data-needs="moderator">Next map</button>
-            <button id="end-game" data-needs="moderator">End game</button>
-          </div>
-          <form id="say-form" class="inline">
-            <input id="say-text" maxlength="127" placeholder="A notice on every screen" aria-label="Notice"
-              data-needs="moderator">
-            <button data-needs="moderator">Say</button>
-          </form>
-        </div>
-        <div class="panel">
-          <h2>Invite</h2>
-          <div class="inline">
-            <input id="invite" readonly aria-label="The invite link">
-            <button id="invite-copy" data-needs="admin">Copy</button>
-          </div>
-          <p class="note">Anyone with the link joins: the game's Join Game, or ?join= on the web page.</p>
-          <h2>Master servers</h2>
-          <table id="masters" class="cards">
-            <thead><tr><th>Master</th><th>Listed</th><th>Probe</th><th>Answer</th><th>When</th></tr></thead>
-            <tbody></tbody>
-          </table>
-          <p id="masters-empty" class="note">No master servers.</p>
-        </div>
-        <div class="panel">
-          <h2>Recent events</h2>
-          <ol id="feed" class="feed"></ol>
+  <div class="dashboard-container">
+    <header class="hud-header">
+      <div class="brand-group">
+        <div class="brand-logo" id="brand-logo-icon"></div>
+        <div class="brand-text">
+          <h1>HALO CE // DEDICATED</h1>
+          <div class="sub" id="brand-org-tag">UNSC LOGISTICS // NETCODE V39</div>
         </div>
       </div>
-    </section>
-
-    <section id="tab-players" class="tab" role="tabpanel" hidden>
-      <div class="panel">
-        <h2>Players</h2>
-        <table id="players" class="cards">
-          <thead><tr><th>Slot</th><th>Name</th><th>Team</th><th>Score</th><th>K/D/A</th><th>Ping</th><th>Played</th>
-            <th>Actions</th></tr></thead>
-          <tbody></tbody>
-        </table>
-        <p id="players-empty" class="note">No players.</p>
-        <p class="note">Every action names the slot and the player: the server checks the slot is still theirs.</p>
+      <div>
+        <span class="status-pill status-green" id="master-status-pill"><span class="status-dot"></span> EN VIVO</span>
       </div>
-    </section>
+    </header>
 
-    <section id="tab-rotation" class="tab" role="tabpanel" hidden>
-      <div class="panel">
-        <h2>Rotation</h2>
-        <ol id="rotation" class="rotation"></ol>
-        <form id="rotation-add" class="fields">
-          <label>Map <select id="add-map" data-needs="admin"></select></label>
-          <label>Gametype <select id="add-gametype" data-needs="admin"></select></label>
-          <label>Rules <input id="add-rules" placeholder="score=50+time=15" data-needs="admin"></label>
-          <button data-needs="admin">Add</button>
-        </form>
-        <p id="rotation-note" class="note"></p>
-        <div class="bar">
-          <button id="rotation-save" class="primary" data-needs="admin">Save</button>
-          <button id="rotation-revert">Revert</button>
-        </div>
-      </div>
-    </section>
+    <nav class="nav-tabs" role="tablist">
+      <button class="nav-tab active" onclick="switchTab('tab-partida', this)">PARTIDA</button>
+      <button class="nav-tab" onclick="switchTab('tab-jugadores', this)">JUGADORES <span class="nav-badge" id="tab-pcount">0</span></button>
+      <button class="nav-tab" onclick="switchTab('tab-rotacion', this)">ROTACIÓN</button>
+      <button class="nav-tab" onclick="switchTab('tab-config', this)">SERVIDOR</button>
+      <button class="nav-tab" onclick="switchTab('tab-coop', this)">CO-OP</button>
+      <button class="nav-tab" onclick="switchTab('tab-terminal', this)">CONSOLA</button>
+    </nav>
 
-    <section id="tab-gametypes" class="tab" role="tabpanel" hidden>
-      <div class="grid">
-        <div class="panel">
-          <h2>Gametypes</h2>
-          <ul id="gametype-files" class="list"></ul>
-          <h3>Built-in</h3>
-          <p id="gametype-builtins" class="note"></p>
-          <form id="gametype-new" class="fields">
-            <label>Name <input id="new-name" pattern="[a-z0-9_\-]{1,32}" placeholder="btb_ctf" required
-              data-needs="admin"></label>
-            <label>Base <select id="new-base" data-needs="admin"></select></label>
-            <button data-needs="admin">New</button>
-          </form>
+    <!-- PESTAÑA 1: PARTIDA -->
+    <div id="tab-partida" class="tab-panel active">
+      <section class="hud-box">
+        <div class="box-title">
+          <span>ESTADO DE PARTIDA // EN VIVO</span>
+          <span class="status-pill status-green"><span class="status-dot"></span> OPERATIVO</span>
         </div>
-        <div class="panel wide" id="gametype-editor" hidden>
-          <h2 id="editor-title"></h2>
-          <div class="editor">
-            <div id="gametype-form" class="schema-form"></div>
-            <label class="raw"><span>gametypes/<span id="editor-file"></span>.toml</span>
-              <textarea id="gametype-text" spellcheck="false" autocapitalize="off" rows="22"></textarea></label>
+        <div class="hero-grid">
+          <div class="hero-stat">
+            <span class="hero-label">Mapa en curso</span>
+            <span class="hero-val-main" id="kpi-map">CARGANDO...</span>
+            <div class="hero-badge" id="kpi-mode">MODO: SLAYER</div>
           </div>
-          <p id="gametype-error" class="error" role="alert"></p>
-          <div class="bar">
-            <button id="gametype-save" class="primary" data-needs="admin">Save</button>
-            <button id="gametype-delete" class="danger" data-needs="admin">Delete</button>
-            <button id="gametype-close">Close</button>
+          <div class="hero-stat">
+            <span class="hero-label">Jugadores conectados</span>
+            <span class="hero-val-main" style="color: #38bdf8;" id="kpi-players">0 / 16 SLOTS</span>
+            <span style="font-size: 11px; color: var(--text-muted);" id="kpi-uptime">Master Server: <b style="color: #34d399;">DEDICATED na-east</b></span>
+          </div>
+          <div class="hero-stat" style="display:flex; flex-direction:column; gap:6px;">
+            <button class="hud-btn" id="btn-skip" style="width: 100%;">SIGUIENTE MAPA</button>
+            <button class="hud-btn" onclick="execHs('sv_map_restart')" style="width: 100%;">REINICIAR RONDA</button>
           </div>
         </div>
-      </div>
-    </section>
-
-    <section id="tab-bans" class="tab" role="tabpanel" hidden>
-      <div class="panel">
-        <h2>Bans</h2>
-        <table id="bans" class="cards">
-          <thead><tr><th>#</th><th>When</th><th>Players</th><th>Address</th><th>Hardware id</th><th>Reason</th>
-            <th>Until</th><th></th></tr></thead>
-          <tbody></tbody>
-        </table>
-        <p id="bans-empty" class="note">No bans.</p>
-      </div>
-    </section>
-
-    <section id="tab-console" class="tab" role="tabpanel" hidden>
-      <div class="panel console">
-        <div class="console-bar">
-          <label class="check"><input type="checkbox" id="follow" checked> Follow</label>
-          <span id="categories" class="chips"></span>
-          <button id="log-clear" class="small">Clear</button>
+        <div style="margin-top:14px; padding-top:12px; border-top:1px dashed var(--panel-border); display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+          <span style="font-size:12px; color:var(--text-muted);">FORZAR MAPA:</span>
+          <select class="form-input" id="quick-map-sel" style="flex:1; min-width:140px;">
+            <option value="beavercreek">Battle Creek (beavercreek)</option>
+            <option value="bloodgulch">Blood Gulch (bloodgulch)</option>
+            <option value="boardingaction">Boarding Action (boardingaction)</option>
+            <option value="carousel">Derelict (carousel)</option>
+            <option value="chillout">Chill Out (chillout)</option>
+            <option value="damnation">Damnation (damnation)</option>
+            <option value="hangemhigh">Hang 'Em High (hangemhigh)</option>
+            <option value="longest">Longest (longest)</option>
+            <option value="prisoner">Prisoner (prisoner)</option>
+            <option value="putput">Chiron TL-34 (putput)</option>
+            <option value="ratrace">Rat Race (ratrace)</option>
+            <option value="sidewinder">Sidewinder (sidewinder)</option>
+            <option value="wizard">Wizard (wizard)</option>
+          </select>
+          <select class="form-input" id="quick-mode-sel" style="flex:1; min-width:120px;">
+            <option value="slayer">Slayer</option>
+            <option value="team_slayer">Team Slayer</option>
+            <option value="ctf">Capture the Flag</option>
+            <option value="gun_game">Gun Game</option>
+            <option value="infection">Infection</option>
+            <option value="swat">SWAT</option>
+            <option value="oddball">Oddball</option>
+            <option value="king">King of the Hill</option>
+            <option value="race">Race</option>
+            <option value="hardcore">Hardcore Slayer</option>
+          </select>
+          <button class="hud-btn" onclick="forceQuickMap()">APLICAR</button>
         </div>
-        <div id="log" class="log" role="log" tabindex="0"></div>
-        <form id="command-form" class="command">
-          <input id="command" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="send"
-            placeholder="A command: help lists them" aria-label="Command">
-          <button>Run</button>
-        </form>
-        <p id="command-hint" class="note">Tab completes, Up and Down go through what was run.</p>
-      </div>
-    </section>
+      </section>
 
-    <section id="tab-settings" class="tab" role="tabpanel" hidden>
-      <form id="settings-form" class="panel">
-        <h2>Settings</h2>
-        <p class="note">Written to config.toml and applied now where they can be. A setting its environment
-          variable sets cannot be changed here.</p>
-        <div id="settings-fields"></div>
-        <p id="settings-note" class="note" role="status"></p>
-        <div class="bar"><button class="primary" data-needs="admin">Save</button>
-          <button type="button" id="settings-revert">Revert</button></div>
-      </form>
-    </section>
-
-    <section id="tab-about" class="tab" role="tabpanel" hidden>
-      <div class="grid">
-        <div class="panel">
-          <h2>Ports to open</h2>
-          <dl class="facts" id="about-ports"></dl>
-          <p class="note">Only the tunnel's port needs to reach the internet. Keep the web port on loopback, or
-            behind a proxy that adds TLS (Caddy: reverse_proxy 127.0.0.1:8080), or reach it with
-            ssh -L 8080:127.0.0.1:8080.</p>
+      <section class="hud-box">
+        <div class="box-title">
+          <span>SALUD DEL SERVIDOR // TELEMETRÍA DINÁMICA</span>
+          <span style="font-size: 11px; color: var(--text-muted);">MUESTREO: 3S</span>
         </div>
-        <div class="panel">
-          <h2>Where files are</h2>
-          <dl class="facts">
-            <div><dt>config.toml</dt><dd>Every setting: beside the executable, or --config</dd></div>
-            <div><dt>init.txt</dt><dd>Commands run at the start (server.init_file), in the data root</dd></div>
-            <div><dt>gametypes/</dt><dd>The operator's gametypes (.toml) and saved ones (.gametype), in the data
-              root</dd></div>
-            <div><dt>bans.txt, debug.txt</dt><dd>In paths.logs, else the data root</dd></div>
-            <div><dt>masters.txt</dt><dd>The master servers, beside the executable</dd></div>
-            <div><dt>publisher.key</dt><dd>The publisher key for the master servers, beside config.toml</dd></div>
-            <div><dt>status.json</dt><dd>The status every 2 seconds (server.status_file)</dd></div>
-          </dl>
+        <div class="health-grid">
+          <div class="health-card">
+            <div class="health-label">TICKRATE / MOTOR</div>
+            <div class="health-val" style="color: #34d399;" id="kpi-tick">30.0 HZ</div>
+            <div class="health-sub">Netcode OpenCE v39</div>
+          </div>
+          <div class="health-card">
+            <div class="health-label">RAM PROCESO (HALO)</div>
+            <div class="health-val" id="kpi-ram">-- MB</div>
+            <div class="health-sub">POSIX statm directo</div>
+          </div>
+          <div class="health-card">
+            <div class="health-label">RAM NODO / ENTORNO</div>
+            <div class="health-val" style="font-size: 18px;" id="node-env-tag">LXC 106 Dedicated</div>
+            <div class="health-sub" id="host-badge">HOST: JOCESLAB MX</div>
+          </div>
+          <div class="health-card">
+            <div class="health-label">TIEMPO EN LÍNEA</div>
+            <div class="health-val" id="kpi-uptime-val">ACTIVO</div>
+            <div class="health-sub">24/7 Dedicated Server</div>
+          </div>
         </div>
-        <div class="panel">
-          <h2>This server</h2>
-          <dl class="facts" id="about-facts"></dl>
-          <p class="note">docs/dedicated_server.md is the reference of the commands, the API and the RCON.</p>
-        </div>
-      </div>
-    </section>
-  </main>
-</div>
-
-<div id="dialog" class="sheet" hidden>
-  <form id="dialog-form" class="sheet-body" role="dialog" aria-modal="true" aria-labelledby="dialog-title">
-    <h2 id="dialog-title"></h2>
-    <div id="dialog-body"></div>
-    <p id="dialog-error" class="error" role="alert"></p>
-    <div class="actions">
-      <button type="button" id="dialog-cancel">Cancel</button>
-      <button type="submit" id="dialog-ok" class="primary">OK</button>
+      </section>
     </div>
-  </form>
+
+    <!-- PESTAÑA 2: ROTACIÓN -->
+    <div id="tab-rotacion" class="tab-panel">
+      <section class="hud-box">
+        <div class="box-title">
+          <span>CONTROL DE PARTIDAS Y MAPCYCLE</span>
+          <span style="font-size: 11px; color: var(--text-muted);">ROTACIÓN OFICIAL</span>
+        </div>
+        <div class="config-grid">
+          <div class="config-card">
+            <div class="config-card-title">SIGUIENTE PARTIDA EN COLA (EN VIVO)</div>
+            <div class="form-group">
+              <label class="form-label">Tipo de Partida Siguiente</label>
+              <select class="form-input" id="rot-next-type" onchange="updateRotOptions()">
+                <option value="multi" selected>Multijugador Competitivo</option>
+                <option value="coop">Campaña Cooperativa (Co-Op)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Mapa / Escenario</label>
+              <select class="form-input" id="rot-map-sel">
+                <option value="beavercreek">Battle Creek (beavercreek)</option>
+                <option value="bloodgulch">Blood Gulch (bloodgulch)</option>
+                <option value="boardingaction">Boarding Action (boardingaction)</option>
+                <option value="carousel">Derelict (carousel)</option>
+                <option value="chillout">Chill Out (chillout)</option>
+                <option value="damnation">Damnation (damnation)</option>
+                <option value="hangemhigh">Hang 'Em High (hangemhigh)</option>
+                <option value="longest">Longest (longest)</option>
+                <option value="prisoner">Prisoner (prisoner)</option>
+                <option value="putput">Chiron TL-34 (putput)</option>
+                <option value="ratrace">Rat Race (ratrace)</option>
+                <option value="sidewinder">Sidewinder (sidewinder)</option>
+                <option value="wizard">Wizard (wizard)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Modo / Reglas</label>
+              <select class="form-input" id="rot-mode-sel">
+                <option value="slayer">Slayer (Asesino)</option>
+                <option value="team_slayer">Team Slayer</option>
+                <option value="ctf">Capture The Flag</option>
+                <option value="gun_game">Gun Game (Juego de Armas)</option>
+                <option value="infection">Infection (Infección)</option>
+                <option value="swat">SWAT</option>
+                <option value="oddball">Oddball</option>
+                <option value="king">King of the Hill</option>
+                <option value="race">Race (Carrera)</option>
+                <option value="hardcore">Hardcore</option>
+              </select>
+            </div>
+            <button class="hud-btn" onclick="applyNextMatch()" style="width:100%; margin-top:6px;">FIJAR COMO SIGUIENTE PARTIDA</button>
+          </div>
+
+          <div class="config-card">
+            <div class="config-card-title">PARÁMETROS DEL MAPCYCLE</div>
+            <div class="form-group">
+              <label class="form-label">Modo de Rotación (network.map_rotation)</label>
+              <select class="form-input" id="cfg-rot-mode">
+                <option value="sequence" selected>Secuencial (En orden de lista)</option>
+                <option value="shuffle">Aleatorio (Barajar mapas)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Votación en Lobby (network.map_voting)</label>
+              <select class="form-input" id="cfg-rot-voting">
+                <option value="true" selected>Habilitada (Elegir mapa por chat)</option>
+                <option value="false">Deshabilitada</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Límite de Tiempo por Partida (debug.network_test_time)</label>
+              <select class="form-input" id="cfg-rot-time">
+                <option value="10">10 Minutos</option>
+                <option value="15" selected>15 Minutos</option>
+                <option value="20">20 Minutos</option>
+                <option value="30">30 Minutos</option>
+              </select>
+            </div>
+            <div style="display:flex; gap:8px; margin-top:12px;">
+              <button class="hud-btn" onclick="saveRotationRules()" style="flex:1;">GUARDAR REGLAS</button>
+              <button class="hud-btn hud-btn-red" id="btn-stop" style="flex:1;">TERMINAR RONDA</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- PESTAÑA 3: JUGADORES -->
+    <div id="tab-jugadores" class="tab-panel">
+      <section class="hud-box">
+        <div class="box-title">
+          <span>LISTA DE JUGADORES EN VIVO</span>
+          <span style="font-size: 11px; color: var(--text-muted);" id="table-count">0 PRESENTES</span>
+        </div>
+        <table class="hud-table">
+          <thead>
+            <tr><th>Slot</th><th>Nombre</th><th>HWID</th><th>Equipo</th><th>Score</th><th>Ping</th><th style="text-align:right;">Acciones</th></tr>
+          </thead>
+          <tbody id="players-body">
+            <tr><td colspan="7" style="text-align:center;padding:20px;color:var(--text-muted);">NO HAY JUGADORES HUMANOS CONECTADOS</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="hud-box">
+        <div class="box-title">
+          <span>LISTA NEGRA (BANS) // VETO POR IP Y HARDWARE (HWID)</span>
+          <button class="hud-btn" style="min-height:30px;padding:2px 10px;font-size:11px;" onclick="refreshBans()">ACTUALIZAR BANS</button>
+        </div>
+        <table class="hud-table">
+          <thead>
+            <tr><th>IP</th><th>HWID</th><th>Motivo</th><th style="text-align:right;">Acción</th></tr>
+          </thead>
+          <tbody id="bans-body">
+            <tr><td colspan="4" style="text-align:center;padding:14px;color:var(--text-muted);">NO HAY VETOS REGISTRADOS EN BANS.TXT</td></tr>
+          </tbody>
+        </table>
+        <div style="margin-top:12px; display:flex; gap:8px;">
+          <input type="text" class="form-input" id="ban-ip-input" placeholder="Dirección IP (ej: 192.168.1.50)" style="flex:1;">
+          <button class="hud-btn hud-btn-red" onclick="banAddressDirect()">VETAR IP</button>
+        </div>
+      </section>
+    </div>
+
+    <!-- PESTAÑA 4: TERMINAL Y LOGS -->
+    <div id="tab-terminal" class="tab-panel">
+      <section class="hud-box">
+        <div class="box-title">
+          <span>CHAT EN VIVO DE LA PARTIDA // MENSAJES Y ANUNCIOS</span>
+          <span class="status-pill status-green"><span class="status-dot"></span> P2P CHAT</span>
+        </div>
+        <div class="cli-terminal" id="chat-output" style="height:140px; margin-bottom:8px; color:#e2e8f0;">Esperando mensajes de jugadores...</div>
+        <div style="display:flex; gap:8px;">
+          <input type="text" class="form-input" id="chat-input" placeholder="Escribir mensaje global como Servidor..." style="flex:1;" onkeydown="if(event.key==='Enter') sendServerChat()">
+          <button class="hud-btn" onclick="sendServerChat()">ENVIAR CHAT</button>
+        </div>
+      </section>
+
+      <section class="hud-box">
+        <div class="box-title">
+          <span>TERMINAL DE COMANDOS HALOSCRIPT</span>
+          <span style="font-size: 11px; color: var(--text-muted);">ACCESO ADMINISTRATIVO (Escribe 'help' para comandos)</span>
+        </div>
+        <div class="cli-terminal" id="cli-output">Servidor iniciado. Esperando comandos HaloScript...</div>
+        <div style="display: flex; gap: 8px; margin-top: 10px;">
+          <input type="text" class="form-input" id="cli-input" placeholder="sv_map, kick, ban..." style="flex: 1;" onkeydown="if(event.key==='Enter') sendCli()">
+          <button class="hud-btn" onclick="sendCli()">ENVIAR</button>
+        </div>
+      </section>
+      <section class="hud-box">
+        <div class="box-title">
+          <span>VISOR DE LOGS // DEBUG.TXT EN VIVO</span>
+          <button class="hud-btn" style="min-height:30px;padding:4px 10px;font-size:11px;" onclick="refreshLogs()">ACTUALIZAR LOG</button>
+        </div>
+        <div class="cli-terminal" id="logs-output" style="height: 180px; color: #94a3b8;">Cargando debug.txt...</div>
+      </section>
+    </div>
+
+        <!-- PESTAÑA: SERVIDOR (AJUSTES REALES) -->
+    <div id="tab-config" class="tab-panel">
+      <section class="hud-box">
+        <div class="box-title">
+          <span>CONFIGURACIÓN DEL SERVIDOR // PARÁMETROS EN VIVO</span>
+          <span class="status-pill status-green"><span class="status-dot"></span> PERSISTENCIA CONFIG.TOML</span>
+        </div>
+        <div class="config-grid">
+          <div class="config-card">
+            <div class="config-card-title">RED Y PRESENTACIÓN PÚBLICA</div>
+            <div class="form-group">
+              <label class="form-label">Nombre del Servidor (network.server_name)</label>
+              <input type="text" class="form-input" id="cfg-server-name" placeholder="JOCESLAB MX">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Puerto de Túnel UDP (network.tunnel_port)</label>
+              <input type="number" class="form-input" id="cfg-tunnel-port" value="2302">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Región en Master Browser (server.region)</label>
+              <select class="form-input" id="cfg-server-region">
+                <option value="na-east">na-east (Norteamérica Este)</option>
+                <option value="na-west">na-west (Norteamérica Oeste)</option>
+                <option value="sa">sa (Sudamérica / México / Latam)</option>
+                <option value="eu">eu (Europa)</option>
+                <option value="ap">ap (Asia / Pacífico)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Listar en Master Server (network.host_public)</label>
+              <select class="form-input" id="cfg-host-public">
+                <option value="true">Sí (Público en el navegador)</option>
+                <option value="false">No (Partida Privada / Solo Invitación)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Contraseña de Acceso (network.server_password)</label>
+              <input type="text" class="form-input" id="cfg-server-password" placeholder="Dejar vacío si es abierto">
+            </div>
+          </div>
+
+          <div class="config-card">
+            <div class="config-card-title">MODERACIÓN Y CHAT</div>
+            <div class="form-group">
+              <label class="form-label">Chat Público en Partidas Listadas (network.public_chat)</label>
+              <select class="form-input" id="cfg-public-chat">
+                <option value="true">Habilitado (Permitir escribir a jugadores)</option>
+                <option value="false">Deshabilitado (Solo avisos del sistema)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Filtro de Palabras y Nombres (server.chat_filter)</label>
+              <select class="form-input" id="cfg-chat-filter">
+                <option value="off">off (Sin filtro)</option>
+                <option value="censor">censor (Reemplazar insultos con ****)</option>
+                <option value="block">block (Rechazar mensaje y bloquear conexión)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Expulsión por Inactividad (network.afk_timeout)</label>
+              <select class="form-input" id="cfg-afk-timeout">
+                <option value="0">Desactivado</option>
+                <option value="60">1 Minuto</option>
+                <option value="120">2 Minutos</option>
+                <option value="180">3 Minutos</option>
+                <option value="300">5 Minutos</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Bot de Prueba en Slot 0 (debug.network_test_player)</label>
+              <select class="form-input" id="cfg-dummy-bot">
+                <option value="false">Desactivado (Dedicado Headless Puro)</option>
+                <option value="true">Activado (Bot inerte en partida)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="config-card">
+            <div class="config-card-title">DISTRIBUCIÓN Y RECURSOS</div>
+            <div class="form-group">
+              <label class="form-label">Compartición P2P de Mapas (network.map_share)</label>
+              <select class="form-input" id="cfg-map-share">
+                <option value="true">Habilitado (Subir mapas a clientes que no los tengan)</option>
+                <option value="false">Deshabilitado</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Límite de Subida P2P en KB/s (network.map_share_upload)</label>
+              <input type="number" class="form-input" id="cfg-map-upload" value="1024">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Notificaciones Discord Webhook (webhooks.discord)</label>
+              <input type="text" class="form-input" id="cfg-webhook-discord" placeholder="https://discord.com/api/webhooks/...">
+            </div>
+            <button class="hud-btn" onclick="saveAllServerSettings()" style="width:100%; margin-top:8px;">GUARDAR Y PERSISTIR EN CONFIG.TOML</button>
+          </div>
+
+          <div class="config-card">
+            <div class="config-card-title">IDENTIDAD VISUAL TÁCTICA</div>
+            <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 10px;">Selecciona la plantilla estética del HUD:</p>
+            <select id="theme-selector-ctrl" class="theme-select-custom" onchange="applyTheme(this.value)">
+              <option value="unsc-titanium">Mjolnir Titanium</option>
+              <option value="oni-blackops">ONI Black Ops</option>
+              <option value="unsc-amber">UNSC Command Amber</option>
+              <option value="unsc-bluefleet">UNSC Fleet Plasma</option>
+              <option value="covenant-sacristan">Sacristan Gold Codex</option>
+              <option value="covenant-zealot">Covenant Zealot Codex</option>
+            </select>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- PESTAÑA 5: CO-OP -->
+    <div id="tab-coop" class="tab-panel">
+      <section class="hud-box">
+        <div class="box-title">
+          <span>CAMPAÑA COOPERATIVA MASIVA // PARÁMETROS CO-OP</span>
+          <span class="status-pill status-green"><span class="status-dot"></span> MOTOR V39</span>
+        </div>
+        <div class="config-grid">
+          <div class="config-card">
+            <div class="config-card-title">SELECTOR DE CAMPAÑA COOPERATIVA</div>
+            <div class="form-group">
+              <label class="form-label">Misión de Halo 1</label>
+              <select class="form-input" id="coop-mission-sel">
+                <option value="a10">The Pillar of Autumn (a10)</option>
+                <option value="a30">Halo (a30)</option>
+                <option value="a50">The Truth and Reconciliation (a50)</option>
+                <option value="b30">The Silent Cartographer (b30)</option>
+                <option value="b40">Assault on the Control Room (b40)</option>
+                <option value="c10">343 Guilty Spark (c10)</option>
+                <option value="c20">The Library (c20)</option>
+                <option value="c40">Two Betrayals (c40)</option>
+                <option value="d20">Keyes (d20)</option>
+                <option value="d40">The Maw (d40)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Dificultad de Campaña</label>
+              <select class="form-input" id="coop-diff-sel">
+                <option value="easy">Fácil</option>
+                <option value="normal" selected>Normal</option>
+                <option value="heroic">Heroica</option>
+                <option value="legendary">Legendaria</option>
+              </select>
+            </div>
+            <button class="hud-btn" onclick="launchCoopMission()" style="width:100%; margin-top:4px;">INICIAR MISIÓN CO-OP</button>
+          </div>
+          <div class="config-card">
+            <div class="config-card-title">ESCALADO DE DIFICULTAD</div>
+            <div class="form-group">
+              <label class="form-label">Modo de Enemigos Co-Op</label>
+              <select class="form-input" id="cfg-coop-enemies">
+                <option value="none">Sin Escalado (Normal)</option>
+                <option value="per_player" selected>Por Jugador (Dinámico)</option>
+                <option value="multiplier">Multiplicador Fijo (x2)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Suministros y Botiquines</label>
+              <select class="form-input" id="cfg-coop-pickups">
+                <option value="per_player" selected>Reabastecimiento por Jugador</option>
+                <option value="none">Estándar Halo CE</option>
+                <option value="multiplier">Abundante (Multiplicado)</option>
+              </select>
+            </div>
+          </div>
+          <div class="config-card">
+            <div class="config-card-title">REGLAS DE ESCUADRÓN</div>
+            <div class="form-group">
+              <label class="form-label">Fuego Amigo en Campaña</label>
+              <select class="form-input" id="cfg-coop-ff">
+                <option value="off">Desactivado (Sin Daño Aliado)</option>
+                <option value="shields_only" selected>Solo Escudos</option>
+                <option value="on">Activado Total</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Compartición de Mapas P2P</label>
+              <select class="form-input" id="cfg-coop-share">
+                <option value="true" selected>Habilitado (P2P Transfer)</option>
+                <option value="false">Deshabilitado</option>
+              </select>
+            </div>
+            <button class="hud-btn" onclick="saveCoopSettings()" style="width: 100%; margin-top: 8px;">GUARDAR PARÁMETROS CO-OP</button>
+          </div>
+        </div>
+      </section>
+    </div>
 </div>
-<div id="toast" class="toast" role="status" hidden></div>
+
+  </div>
+
+  <script>
+    const THEMES = {"unsc-titanium": {"name": "Mjolnir Titanium", "org": "UNSC LOGISTICS // BALANCED ARMOR", "logo_svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 120 100\" class=\"hud-insignia\">\n  <!-- Alas de aguila estilizadas -->\n  <path d=\"M 60,35 C 55,20 40,8 20,5 C 24,15 26,26 30,38 C 22,28 15,22 8,18 C 12,30 16,42 24,52 C 16,45 10,40 5,36 C 8,50 14,62 26,70 C 35,66 48,65 54,68 Z\" fill=\"currentColor\" opacity=\"0.85\"/>\n  <path d=\"M 60,35 C 65,20 80,8 100,5 C 96,15 94,26 90,38 C 98,28 105,22 112,18 C 108,30 104,42 96,52 C 104,45 110,40 115,36 C 112,50 106,62 94,70 C 85,66 72,65 66,68 Z\" fill=\"currentColor\" opacity=\"0.85\"/>\n  <!-- Cabeza de aguila -->\n  <path d=\"M 54,32 C 54,26 58,22 62,22 C 66,22 67,25 70,27 C 67,29 65,30 63,30 C 63,34 60,36 57,36 Z\" fill=\"currentColor\"/>\n  <!-- Escudo central -->\n  <path d=\"M 44,48 L 76,48 L 72,76 L 60,84 L 48,76 Z\" fill=\"var(--bg)\" stroke=\"currentColor\" stroke-width=\"2.5\"/>\n  <!-- Texto UNSC dentro del escudo -->\n  <text x=\"60\" y=\"65\" font-family=\"'Teko', sans-serif\" font-size=\"16\" font-weight=\"700\" fill=\"currentColor\" text-anchor=\"middle\" letter-spacing=\"1\">UNSC</text>\n  <!-- Liston inferior -->\n  <path d=\"M 32,84 Q 60,94 88,84 L 84,80 Q 60,89 36,80 Z\" fill=\"currentColor\" opacity=\"0.7\"/>\n</svg>", "bg_col": "#2b333a", "glow": "radial-gradient(ellipse 80% 50% at 50% -10%, rgba(255, 255, 255, 0.18) 0%, transparent 75%)", "texture_url": "data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20width%3D%2736%27%20height%3D%2736%27%20viewBox%3D%270%200%2036%2036%27%3E%0A%3Cdefs%3E%3Cstyle%3E.b%7Bstroke%3A%23d5dde5%3Bstroke-width%3A2.8%3Bstroke-linecap%3Around%3Bopacity%3A0.22%3B%7D%3C/style%3E%3C/defs%3E%0A%3Cline%20x1%3D%273.5%27%20y1%3D%2714.5%27%20x2%3D%2714.5%27%20y2%3D%273.5%27%20class%3D%27b%27/%3E%0A%3Cline%20x1%3D%2721.5%27%20y1%3D%273.5%27%20x2%3D%2732.5%27%20y2%3D%2714.5%27%20class%3D%27b%27/%3E%0A%3Cline%20x1%3D%273.5%27%20y1%3D%2721.5%27%20x2%3D%2714.5%27%20y2%3D%2732.5%27%20class%3D%27b%27/%3E%0A%3Cline%20x1%3D%2721.5%27%20y1%3D%2732.5%27%20x2%3D%2732.5%27%20y2%3D%2721.5%27%20class%3D%27b%27/%3E%0A%3C/svg%3E", "texture_size": "100% 100%, 36px 36px", "panel_surface": "linear-gradient(180deg, rgba(38, 46, 54, 0.88) 0%, rgba(22, 27, 32, 0.94) 100%)", "panel_border": "rgba(226, 232, 240, 0.28)", "panel_bevel": "rgba(255, 255, 255, 0.25)", "accent": "#e2e8f0", "accent_bright": "#ffffff", "logo_color": "#f8fafc", "logo_opacity": "0.22"}, "oni-blackops": {"name": "ONI Black Ops", "org": "OFFICE OF NAVAL INTELLIGENCE // TOP SECRET", "logo_svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\" class=\"hud-insignia\">\n  <circle cx=\"50\" cy=\"50\" r=\"46\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" opacity=\"0.4\"/>\n  <circle cx=\"50\" cy=\"50\" r=\"40\" fill=\"currentColor\" opacity=\"0.12\"/>\n  <!-- Triangulo invertido interior con ojo estilizado -->\n  <polygon points=\"50,18 78,72 22,72\" fill=\"currentColor\" opacity=\"0.85\"/>\n  <circle cx=\"50\" cy=\"52\" r=\"13\" fill=\"var(--bg)\"/>\n  <circle cx=\"50\" cy=\"52\" r=\"7\" fill=\"currentColor\"/>\n</svg>", "bg_col": "#050608", "glow": "radial-gradient(ellipse 80% 50% at 50% -10%, rgba(255, 255, 255, 0.12) 0%, transparent 75%)", "texture_url": "data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20width%3D%2736%27%20height%3D%2736%27%20viewBox%3D%270%200%2036%2036%27%3E%0A%3Cdefs%3E%3Cstyle%3E.b%7Bstroke%3A%23ffffff%3Bstroke-width%3A2.8%3Bstroke-linecap%3Around%3Bopacity%3A0.18%3B%7D%3C/style%3E%3C/defs%3E%0A%3Cline%20x1%3D%273.5%27%20y1%3D%2714.5%27%20x2%3D%2714.5%27%20y2%3D%273.5%27%20class%3D%27b%27/%3E%0A%3Cline%20x1%3D%2721.5%27%20y1%3D%273.5%27%20x2%3D%2732.5%27%20y2%3D%2714.5%27%20class%3D%27b%27/%3E%0A%3Cline%20x1%3D%273.5%27%20y1%3D%2721.5%27%20x2%3D%2714.5%27%20y2%3D%2732.5%27%20class%3D%27b%27/%3E%0A%3Cline%20x1%3D%2721.5%27%20y1%3D%2732.5%27%20x2%3D%2732.5%27%20y2%3D%2721.5%27%20class%3D%27b%27/%3E%0A%3C/svg%3E", "texture_size": "100% 100%, 36px 36px", "panel_surface": "linear-gradient(180deg, rgba(17, 22, 30, 0.88) 0%, rgba(9, 12, 17, 0.94) 100%)", "panel_border": "rgba(255, 255, 255, 0.24)", "panel_bevel": "rgba(255, 255, 255, 0.25)", "accent": "#f8fafc", "accent_bright": "#ffffff", "logo_color": "#ffffff", "logo_opacity": "0.22"}, "unsc-amber": {"name": "UNSC Command Amber", "org": "UNSC HIGH COMMAND // CODE: ORANGE", "logo_svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 120 100\" class=\"hud-insignia\">\n  <!-- Alas de aguila estilizadas -->\n  <path d=\"M 60,35 C 55,20 40,8 20,5 C 24,15 26,26 30,38 C 22,28 15,22 8,18 C 12,30 16,42 24,52 C 16,45 10,40 5,36 C 8,50 14,62 26,70 C 35,66 48,65 54,68 Z\" fill=\"currentColor\" opacity=\"0.85\"/>\n  <path d=\"M 60,35 C 65,20 80,8 100,5 C 96,15 94,26 90,38 C 98,28 105,22 112,18 C 108,30 104,42 96,52 C 104,45 110,40 115,36 C 112,50 106,62 94,70 C 85,66 72,65 66,68 Z\" fill=\"currentColor\" opacity=\"0.85\"/>\n  <!-- Cabeza de aguila -->\n  <path d=\"M 54,32 C 54,26 58,22 62,22 C 66,22 67,25 70,27 C 67,29 65,30 63,30 C 63,34 60,36 57,36 Z\" fill=\"currentColor\"/>\n  <!-- Escudo central -->\n  <path d=\"M 44,48 L 76,48 L 72,76 L 60,84 L 48,76 Z\" fill=\"var(--bg)\" stroke=\"currentColor\" stroke-width=\"2.5\"/>\n  <!-- Texto UNSC dentro del escudo -->\n  <text x=\"60\" y=\"65\" font-family=\"'Teko', sans-serif\" font-size=\"16\" font-weight=\"700\" fill=\"currentColor\" text-anchor=\"middle\" letter-spacing=\"1\">UNSC</text>\n  <!-- Liston inferior -->\n  <path d=\"M 32,84 Q 60,94 88,84 L 84,80 Q 60,89 36,80 Z\" fill=\"currentColor\" opacity=\"0.7\"/>\n</svg>", "bg_col": "#0d1117", "glow": "radial-gradient(ellipse 80% 50% at 50% -10%, rgba(245, 158, 11, 0.18) 0%, transparent 75%)", "texture_url": "data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20width%3D%2736%27%20height%3D%2736%27%20viewBox%3D%270%200%2036%2036%27%3E%0A%3Cdefs%3E%3Cstyle%3E.b%7Bstroke%3A%23f59e0b%3Bstroke-width%3A2.8%3Bstroke-linecap%3Around%3Bopacity%3A0.20%3B%7D%3C/style%3E%3C/defs%3E%0A%3Cline%20x1%3D%273.5%27%20y1%3D%2714.5%27%20x2%3D%2714.5%27%20y2%3D%273.5%27%20class%3D%27b%27/%3E%0A%3Cline%20x1%3D%2721.5%27%20y1%3D%273.5%27%20x2%3D%2732.5%27%20y2%3D%2714.5%27%20class%3D%27b%27/%3E%0A%3Cline%20x1%3D%273.5%27%20y1%3D%2721.5%27%20x2%3D%2714.5%27%20y2%3D%2732.5%27%20class%3D%27b%27/%3E%0A%3Cline%20x1%3D%2721.5%27%20y1%3D%2732.5%27%20x2%3D%2732.5%27%20y2%3D%2721.5%27%20class%3D%27b%27/%3E%0A%3C/svg%3E", "texture_size": "100% 100%, 36px 36px", "panel_surface": "linear-gradient(180deg, rgba(26, 33, 44, 0.88) 0%, rgba(14, 18, 25, 0.94) 100%)", "panel_border": "rgba(245, 158, 11, 0.32)", "panel_bevel": "rgba(251, 191, 36, 0.22)", "accent": "#f59e0b", "accent_bright": "#fbbf24", "logo_color": "#fbbf24", "logo_opacity": "0.22"}, "unsc-bluefleet": {"name": "UNSC Fleet Plasma", "org": "FLEET BRIDGE // FORWARD UNTO DAWN", "logo_svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 120 100\" class=\"hud-insignia\">\n  <!-- Alas de aguila estilizadas -->\n  <path d=\"M 60,35 C 55,20 40,8 20,5 C 24,15 26,26 30,38 C 22,28 15,22 8,18 C 12,30 16,42 24,52 C 16,45 10,40 5,36 C 8,50 14,62 26,70 C 35,66 48,65 54,68 Z\" fill=\"currentColor\" opacity=\"0.85\"/>\n  <path d=\"M 60,35 C 65,20 80,8 100,5 C 96,15 94,26 90,38 C 98,28 105,22 112,18 C 108,30 104,42 96,52 C 104,45 110,40 115,36 C 112,50 106,62 94,70 C 85,66 72,65 66,68 Z\" fill=\"currentColor\" opacity=\"0.85\"/>\n  <!-- Cabeza de aguila -->\n  <path d=\"M 54,32 C 54,26 58,22 62,22 C 66,22 67,25 70,27 C 67,29 65,30 63,30 C 63,34 60,36 57,36 Z\" fill=\"currentColor\"/>\n  <!-- Escudo central -->\n  <path d=\"M 44,48 L 76,48 L 72,76 L 60,84 L 48,76 Z\" fill=\"var(--bg)\" stroke=\"currentColor\" stroke-width=\"2.5\"/>\n  <!-- Texto UNSC dentro del escudo -->\n  <text x=\"60\" y=\"65\" font-family=\"'Teko', sans-serif\" font-size=\"16\" font-weight=\"700\" fill=\"currentColor\" text-anchor=\"middle\" letter-spacing=\"1\">UNSC</text>\n  <!-- Liston inferior -->\n  <path d=\"M 32,84 Q 60,94 88,84 L 84,80 Q 60,89 36,80 Z\" fill=\"currentColor\" opacity=\"0.7\"/>\n</svg>", "bg_col": "#030a14", "glow": "radial-gradient(ellipse 80% 50% at 50% -10%, rgba(6, 182, 212, 0.22) 0%, transparent 75%)", "texture_url": "data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20width%3D%2736%27%20height%3D%2736%27%20viewBox%3D%270%200%2036%2036%27%3E%0A%3Cdefs%3E%3Cstyle%3E.b%7Bstroke%3A%2338bdf8%3Bstroke-width%3A2.8%3Bstroke-linecap%3Around%3Bopacity%3A0.20%3B%7D%3C/style%3E%3C/defs%3E%0A%3Cline%20x1%3D%273.5%27%20y1%3D%2714.5%27%20x2%3D%2714.5%27%20y2%3D%273.5%27%20class%3D%27b%27/%3E%0A%3Cline%20x1%3D%2721.5%27%20y1%3D%273.5%27%20x2%3D%2732.5%27%20y2%3D%2714.5%27%20class%3D%27b%27/%3E%0A%3Cline%20x1%3D%273.5%27%20y1%3D%2721.5%27%20x2%3D%2714.5%27%20y2%3D%2732.5%27%20class%3D%27b%27/%3E%0A%3Cline%20x1%3D%2721.5%27%20y1%3D%2732.5%27%20x2%3D%2732.5%27%20y2%3D%2721.5%27%20class%3D%27b%27/%3E%0A%3C/svg%3E", "texture_size": "100% 100%, 36px 36px", "panel_surface": "linear-gradient(180deg, rgba(8, 26, 44, 0.88) 0%, rgba(4, 14, 25, 0.94) 100%)", "panel_border": "rgba(6, 182, 212, 0.32)", "panel_bevel": "rgba(56, 189, 248, 0.22)", "accent": "#38bdf8", "accent_bright": "#7dd3fc", "logo_color": "#38bdf8", "logo_opacity": "0.22"}, "covenant-sacristan": {"name": "Sacristan Gold Codex", "org": "SACRISTAN ORDER // SEAMLESS WAYPOINT CODEX", "logo_svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 160 170\" class=\"hud-insignia\">\n  <!-- Domo superior masivo (hongo espacial de Gran Caridad) -->\n  <path d=\"M 80,18 C 30,18 10,48 10,68 C 10,74 25,78 40,79 C 55,80 70,82 80,82 C 90,82 105,80 120,79 C 135,78 150,74 150,68 C 150,48 130,18 80,18 Z\" fill=\"currentColor\" opacity=\"0.95\"/>\n  <!-- Detalles cr\u00e1teres y hendiduras bioluminiscentes en el domo -->\n  <path d=\"M 38,45 Q 52,38 68,44 Q 56,52 38,45 Z\" fill=\"#0b0314\" opacity=\"0.8\"/>\n  <circle cx=\"48\" cy=\"45\" r=\"3\" fill=\"currentColor\"/>\n  <path d=\"M 94,40 Q 112,36 126,42 Q 114,48 94,40 Z\" fill=\"#0b0314\" opacity=\"0.8\"/>\n  <circle cx=\"110\" cy=\"41\" r=\"2.5\" fill=\"currentColor\"/>\n  <!-- Resplandor del anillo inferior del domo (foso de la ciudad) -->\n  <ellipse cx=\"80\" cy=\"74\" rx=\"66\" ry=\"6\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" opacity=\"0.6\"/>\n  <!-- Spire / Aguja central y ramas de la ciudad colgante inferior -->\n  <path d=\"M 45,80 L 76,145 L 80,154 L 84,145 L 115,80 Z\" fill=\"currentColor\" opacity=\"0.35\"/>\n  <line x1=\"80\" y1=\"80\" x2=\"80\" y2=\"158\" stroke=\"currentColor\" stroke-width=\"3\" opacity=\"0.9\"/>\n  <!-- Brazos orbitales / muelles de atraque colgantes -->\n  <line x1=\"62\" y1=\"96\" x2=\"98\" y2=\"96\" stroke=\"currentColor\" stroke-width=\"2\" opacity=\"0.8\"/>\n  <line x1=\"68\" y1=\"112\" x2=\"92\" y2=\"112\" stroke=\"currentColor\" stroke-width=\"1.8\" opacity=\"0.75\"/>\n  <line x1=\"73\" y1=\"126\" x2=\"87\" y2=\"126\" stroke=\"currentColor\" stroke-width=\"1.5\" opacity=\"0.7\"/>\n  <!-- Tipograf\u00eda sagrada -->\n  <text x=\"80\" y=\"166\" font-family=\"'Teko', sans-serif\" font-size=\"14\" font-weight=\"700\" fill=\"currentColor\" text-anchor=\"middle\" letter-spacing=\"3\">HIGH CHARITY</text>\n</svg>", "bg_col": "#10061d", "glow": "radial-gradient(circle at 50% 15%, rgba(217, 119, 6, 0.22) 0%, transparent 75%)", "texture_url": "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22112%22%20height%3D%2296%22%20viewBox%3D%220%200%20112%2096%22%3E%0A%20%20%3Cdefs%3E%0A%20%20%20%20%3Cstyle%3E%0A%20%20%20%20%20%20.h%20%7B%20fill%3A%20none%3B%20stroke%3A%20%23d97706%3B%20stroke-width%3A%201.0%3B%20opacity%3A%200.35%3B%20%7D%0A%20%20%20%20%20%20.g%20%7B%20stroke%3A%20%23d97706%3B%20stroke-width%3A%201.7%3B%20stroke-linecap%3A%20round%3B%20stroke-linejoin%3A%20round%3B%20fill%3A%20none%3B%20opacity%3A%200.50%3B%20%7D%0A%20%20%20%20%20%20.gf%20%7B%20fill%3A%20%23d97706%3B%20opacity%3A%200.50%3B%20%7D%0A%20%20%20%20%3C/style%3E%0A%20%20%3C/defs%3E%0A%20%20%3C%21--%20Panal%20de%20hex%C3%A1gonos%20100%25%20pegados%20y%20continuos%20--%3E%0A%20%20%3Cpolygon%20points%3D%2214%2C-24%2028%2C-16%2028%2C0%2014%2C8%200%2C0%200%2C-16%22%20class%3D%22h%22/%3E%3Cpolygon%20points%3D%2242%2C-24%2056%2C-16%2056%2C0%2042%2C8%2028%2C0%2028%2C-16%22%20class%3D%22h%22/%3E%3Cpolygon%20points%3D%2270%2C-24%2084%2C-16%2084%2C0%2070%2C8%2056%2C0%2056%2C-16%22%20class%3D%22h%22/%3E%3Cpolygon%20points%3D%2298%2C-24%20112%2C-16%20112%2C0%2098%2C8%2084%2C0%2084%2C-16%22%20class%3D%22h%22/%3E%3Cpolygon%20points%3D%22126%2C-24%20140%2C-16%20140%2C0%20126%2C8%20112%2C0%20112%2C-16%22%20class%3D%22h%22/%3E%3Cpolygon%20points%3D%2214%2C0%2028%2C8%2028%2C24%2014%2C32%200%2C24%200%2C8%22%20class%3D%22h%22/%3E%3Cpolygon%20points%3D%2242%2C0%2056%2C8%2056%2C24%2042%2C32%2028%2C24%2028%2C8%22%20class%3D%22h%22/%3E%3Cpolygon%20points%3D%2270%2C0%2084%2C8%2084%2C24%2070%2C32%2056%2C24%2056%2C8%22%20class%3D%22h%22/%3E%3Cpolygon%20points%3D%2298%2C0%20112%2C8%20112%2C24%2098%2C32%2084%2C24%2084%2C8%22%20class%3D%22h%22/%3E%3Cpolygon%20points%3D%22126%2C0%20140%2C8%20140%2C24%20126%2C32%20112%2C24%20112%2C8%22%20class%3D%22h%22/%3E%3Cpolygon%20points%3D%220%2C24%2014%2C32%2014%2C48%200%2C56%20-14%2C48%20-14%2C32%22%20class%3D%22h%22/%3E%3Cpolygon%20points%3D%2228%2C24%2042%2C32%2042%2C48%2028%2C56%2014%2C48%2014%2C32%22%20class%3D%22h%22/%3E%3Cpolygon%20points%3D%2256%2C24%2070%2C32%2070%2C48%2056%2C56%2042%2C48%2042%2C32%22%20class%3D%22h%22/%3E%3Cpolygon%20points%3D%2284%2C24%2098%2C32%2098%2C48%2084%2C56%2070%2C48%2070%2C32%22%20class%3D%22h%22/%3E%3Cpolygon%20points%3D%22112%2C24%20126%2C32%20126%2C48%20112%2C56%2098%2C48%2098%2C32%22%20class%3D%22h%22/%3E%3Cpolygon%20points%3D%2214%2C48%2028%2C56%2028%2C72%2014%2C80%200%2C72%200%2C56%22%20class%3D%22h%22/%3E%3Cpolygon%20points%3D%2242%2C48%2056%2C56%2056%2C72%2042%2C80%2028%2C72%2028%2C56%22%20class%3D%22h%22/%3E%3Cpolygon%20points%3D%2270%2C48%2084%2C56%2084%2C72%2070%2C80%2056%2C72%2056%2C56%22%20class%3D%22h%22/%3E%3Cpolygon%20points%3D%2298%2C48%20112%2C56%20112%2C72%2098%2C80%2084%2C72%2084%2C56%22%20class%3D%22h%22/%3E%3Cpolygon%20points%3D%22126%2C48%20140%2C56%20140%2C72%20126%2C80%20112%2C72%20112%2C56%22%20class%3D%22h%22/%3E%3Cpolygon%20points%3D%220%2C72%2014%2C80%2014%2C96%200%2C104%20-14%2C96%20-14%2C80%22%20class%3D%22h%22/%3E%3Cpolygon%20points%3D%2228%2C72%2042%2C80%2042%2C96%2028%2C104%2014%2C96%2014%2C80%22%20class%3D%22h%22/%3E%3Cpolygon%20points%3D%2256%2C72%2070%2C80%2070%2C96%2056%2C104%2042%2C96%2042%2C80%22%20class%3D%22h%22/%3E%3Cpolygon%20points%3D%2284%2C72%2098%2C80%2098%2C96%2084%2C104%2070%2C96%2070%2C80%22%20class%3D%22h%22/%3E%3Cpolygon%20points%3D%22112%2C72%20126%2C80%20126%2C96%20112%2C104%2098%2C96%2098%2C80%22%20class%3D%22h%22/%3E%3Cpolygon%20points%3D%2214%2C96%2028%2C104%2028%2C120%2014%2C128%200%2C120%200%2C104%22%20class%3D%22h%22/%3E%3Cpolygon%20points%3D%2242%2C96%2056%2C104%2056%2C120%2042%2C128%2028%2C120%2028%2C104%22%20class%3D%22h%22/%3E%3Cpolygon%20points%3D%2270%2C96%2084%2C104%2084%2C120%2070%2C128%2056%2C120%2056%2C104%22%20class%3D%22h%22/%3E%3Cpolygon%20points%3D%2298%2C96%20112%2C104%20112%2C120%2098%2C128%2084%2C120%2084%2C104%22%20class%3D%22h%22/%3E%3Cpolygon%20points%3D%22126%2C96%20140%2C104%20140%2C120%20126%2C128%20112%2C120%20112%2C104%22%20class%3D%22h%22/%3E%0A%20%20%3C%21--%20S%C3%ADmbolos%20aut%C3%A9nticos%20Covenant%20variados%20--%3E%0A%20%20%3Cpath%20d%3D%22M%2014%2C9%20L%2014%2C21%20Q%2014%2C24%2011%2C24%22%20class%3D%22g%22/%3E%3Cline%20x1%3D%229%22%20y1%3D%2213%22%20x2%3D%2219%22%20y2%3D%2213%22%20class%3D%22g%22/%3E%3Cline%20x1%3D%2210%22%20y1%3D%2217%22%20x2%3D%2218%22%20y2%3D%2217%22%20class%3D%22g%22/%3E%3Cpath%20d%3D%22M%2037%2C11%20L%2046%2C11%20L%2040%2C16%20L%2046%2C21%20L%2037%2C21%22%20class%3D%22g%22/%3E%3Ccircle%20cx%3D%2241%22%20cy%3D%2216%22%20r%3D%221.3%22%20class%3D%22gf%22/%3E%3Cline%20x1%3D%2270%22%20y1%3D%2210%22%20x2%3D%2270%22%20y2%3D%2222%22%20class%3D%22g%22/%3E%3Cpath%20d%3D%22M%2065%2C14%20L%2070%2C17%20L%2075%2C14%22%20class%3D%22g%22/%3E%3Cline%20x1%3D%2265%22%20y1%3D%2222%22%20x2%3D%2275%22%20y2%3D%2222%22%20class%3D%22g%22/%3E%3Cpath%20d%3D%22M%2098%2C11%20C%2092%2C11%2092%2C21%2098%2C21%20C%20104%2C21%20104%2C15%2098%2C15%20L%20104%2C15%22%20class%3D%22g%22/%3E%3Ccircle%20cx%3D%2295%22%20cy%3D%2216%22%20r%3D%221.1%22%20class%3D%22gf%22/%3E%3Cline%20x1%3D%2222%22%20y1%3D%2237%22%20x2%3D%2232%22%20y2%3D%2237%22%20class%3D%22g%22/%3E%3Cline%20x1%3D%2222%22%20y1%3D%2240%22%20x2%3D%2234%22%20y2%3D%2240%22%20class%3D%22g%22/%3E%3Cline%20x1%3D%2222%22%20y1%3D%2243%22%20x2%3D%2232%22%20y2%3D%2243%22%20class%3D%22g%22/%3E%3Cpath%20d%3D%22M%2030%2C36%20L%2034%2C40%20L%2030%2C44%22%20class%3D%22g%22/%3E%3Cline%20x1%3D%2252%22%20y1%3D%2235%22%20x2%3D%2252%22%20y2%3D%2245%22%20class%3D%22g%22/%3E%3Cline%20x1%3D%2256%22%20y1%3D%2234%22%20x2%3D%2256%22%20y2%3D%2246%22%20class%3D%22g%22/%3E%3Cline%20x1%3D%2260%22%20y1%3D%2235%22%20x2%3D%2260%22%20y2%3D%2245%22%20class%3D%22g%22/%3E%3Cpath%20d%3D%22M%2079%2C36%20L%2084%2C33%20L%2089%2C36%22%20class%3D%22g%22/%3E%3Cpath%20d%3D%22M%2079%2C42%20L%2084%2C39%20L%2089%2C42%22%20class%3D%22g%22/%3E%3Cline%20x1%3D%2284%22%20y1%3D%2239%22%20x2%3D%2284%22%20y2%3D%2246%22%20class%3D%22g%22/%3E%3Cpath%20d%3D%22M%204%2C35%20L%20-4%2C39%20L%204%2C42%20L%20-4%2C46%22%20class%3D%22g%22/%3E%3Cline%20x1%3D%22-4%22%20y1%3D%2235%22%20x2%3D%224%22%20y2%3D%2246%22%20class%3D%22g%22%20style%3D%22opacity%3A0.4%3B%22/%3E%3Cpath%20d%3D%22M%20116%2C35%20L%20108%2C39%20L%20116%2C42%20L%20108%2C46%22%20class%3D%22g%22/%3E%3Cline%20x1%3D%22108%22%20y1%3D%2235%22%20x2%3D%22116%22%20y2%3D%2246%22%20class%3D%22g%22%20style%3D%22opacity%3A0.4%3B%22/%3E%3Cpath%20d%3D%22M%2018%2C58%20L%2012%2C58%20L%2012%2C70%22%20class%3D%22g%22/%3E%3Cline%20x1%3D%229%22%20y1%3D%2264%22%20x2%3D%2217%22%20y2%3D%2264%22%20class%3D%22g%22/%3E%3Cline%20x1%3D%229%22%20y1%3D%2268%22%20x2%3D%2217%22%20y2%3D%2268%22%20class%3D%22g%22/%3E%3Cpath%20d%3D%22M%2038%2C70%20L%2038%2C59%20L%2046%2C59%22%20class%3D%22g%22/%3E%3Cpolygon%20points%3D%2242%2C64%2045%2C67%2042%2C70%2039%2C67%22%20class%3D%22gf%22/%3E%3Cpath%20d%3D%22M%2074%2C59%20C%2065%2C59%2065%2C64%2070%2C64%20C%2075%2C64%2075%2C69%20C%2066%2C69%2066%2C69%22%20class%3D%22g%22/%3E%3Cline%20x1%3D%2267%22%20y1%3D%2263%22%20x2%3D%2273%22%20y2%3D%2265%22%20class%3D%22g%22/%3E%3Cpath%20d%3D%22M%2094%2C59%20Q%2092%2C64%2094%2C69%20Q%20102%2C64%2094%2C59%22%20class%3D%22g%22/%3E%3Ccircle%20cx%3D%2297%22%20cy%3D%2264%22%20r%3D%221.3%22%20class%3D%22gf%22/%3E%3Cpath%20d%3D%22M%2023%2C83%20L%2032%2C83%20L%2026%2C88%20L%2032%2C93%20L%2023%2C93%22%20class%3D%22g%22/%3E%3Ccircle%20cx%3D%2227%22%20cy%3D%2288%22%20r%3D%221.3%22%20class%3D%22gf%22/%3E%3Cpath%20d%3D%22M%2056%2C83%20C%2050%2C83%2050%2C93%2056%2C93%20C%2062%2C93%2062%2C87%2056%2C87%20L%2062%2C87%22%20class%3D%22g%22/%3E%3Ccircle%20cx%3D%2253%22%20cy%3D%2288%22%20r%3D%221.1%22%20class%3D%22gf%22/%3E%3Cpath%20d%3D%22M%2084%2C81%20L%2084%2C93%20Q%2084%2C96%2081%2C96%22%20class%3D%22g%22/%3E%3Cline%20x1%3D%2279%22%20y1%3D%2285%22%20x2%3D%2289%22%20y2%3D%2285%22%20class%3D%22g%22/%3E%3Cline%20x1%3D%2280%22%20y1%3D%2289%22%20x2%3D%2288%22%20y2%3D%2289%22%20class%3D%22g%22/%3E%3Cline%20x1%3D%220%22%20y1%3D%2282%22%20x2%3D%220%22%20y2%3D%2294%22%20class%3D%22g%22/%3E%3Cpath%20d%3D%22M%20-5%2C86%20L%200%2C89%20L%205%2C86%22%20class%3D%22g%22/%3E%3Cline%20x1%3D%22-5%22%20y1%3D%2294%22%20x2%3D%225%22%20y2%3D%2294%22%20class%3D%22g%22/%3E%3Cline%20x1%3D%22112%22%20y1%3D%2282%22%20x2%3D%22112%22%20y2%3D%2294%22%20class%3D%22g%22/%3E%3Cpath%20d%3D%22M%20107%2C86%20L%20112%2C89%20L%20117%2C86%22%20class%3D%22g%22/%3E%3Cline%20x1%3D%22107%22%20y1%3D%2294%22%20x2%3D%22117%22%20y2%3D%2294%22%20class%3D%22g%22/%3E%0A%3C/svg%3E", "texture_size": "100% 100%, 112px 96px", "panel_surface": "linear-gradient(180deg, rgba(28, 14, 46, 0.88) 0%, rgba(13, 5, 23, 0.94) 100%)", "panel_border": "rgba(245, 158, 11, 0.32)", "panel_bevel": "rgba(251, 191, 36, 0.25)", "accent": "#fbbf24", "accent_bright": "#fef08a", "logo_color": "#fbbf24", "logo_opacity": "0.18"}, "covenant-zealot": {"name": "Covenant Zealot Codex", "org": "SANGHEILI ZEALOT // SEAMLESS COVENANT CODEX", "logo_svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 160 160\" class=\"hud-insignia\">\n  <!-- Arco orbital exterior punteado -->\n  <circle cx=\"80\" cy=\"80\" r=\"74\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-dasharray=\"4,4\" opacity=\"0.4\"/>\n  <circle cx=\"80\" cy=\"80\" r=\"66\" fill=\"rgba(15, 6, 28, 0.45)\" stroke=\"currentColor\" stroke-width=\"2\" opacity=\"0.6\"/>\n  <!-- Glifo sagrado Covenant (Forma bio-mec\u00e1nica curva / Sangheili) -->\n  <path d=\"M 80,24 C 65,45 42,60 26,76 C 45,74 65,82 72,96 C 76,82 84,82 88,96 C 95,82 115,74 134,76 C 118,60 95,45 80,24 Z\" fill=\"currentColor\" opacity=\"0.95\"/>\n  <!-- Ojo / N\u00facleo de Plasma Superior -->\n  <ellipse cx=\"80\" cy=\"54\" rx=\"7\" ry=\"12\" fill=\"#0b0314\" stroke=\"currentColor\" stroke-width=\"2\"/>\n  <circle cx=\"80\" cy=\"54\" r=\"3.5\" fill=\"currentColor\"/>\n  <!-- Garras inferiores / Cuernos del Gran Viaje -->\n  <path d=\"M 40,84 C 34,106 48,124 64,132 C 55,120 54,104 60,94 Z\" fill=\"currentColor\" opacity=\"0.9\"/>\n  <path d=\"M 120,84 C 126,106 112,124 96,132 C 105,120 106,104 100,94 Z\" fill=\"currentColor\" opacity=\"0.9\"/>\n  <!-- Anillo sagrado / Halo miniatura flotante -->\n  <ellipse cx=\"80\" cy=\"116\" rx=\"14\" ry=\"4.5\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" opacity=\"0.9\"/>\n  <!-- Tipograf\u00eda Forerunner / Sangheili -->\n  <text x=\"80\" y=\"148\" font-family=\"'Teko', sans-serif\" font-size=\"16\" font-weight=\"700\" fill=\"currentColor\" text-anchor=\"middle\" letter-spacing=\"4\">COVENANT</text>\n  <text x=\"80\" y=\"157\" font-family=\"'Share Tech Mono', monospace\" font-size=\"7\" fill=\"currentColor\" opacity=\"0.75\" text-anchor=\"middle\" letter-spacing=\"1.5\">HOLY ECUMENE FLEET</text>\n</svg>", "bg_col": "#030814", "glow": "radial-gradient(circle at 50% 15%, rgba(2, 132, 199, 0.22) 0%, transparent 75%)", "texture_url": "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22112%22%20height%3D%2296%22%20viewBox%3D%220%200%20112%2096%22%3E%0A%20%20%3Cdefs%3E%0A%20%20%20%20%3Cstyle%3E%0A%20%20%20%20%20%20.h%20%7B%20fill%3A%20none%3B%20stroke%3A%20%230284c7%3B%20stroke-width%3A%201.0%3B%20opacity%3A%200.35%3B%20%7D%0A%20%20%20%20%20%20.g%20%7B%20stroke%3A%20%230284c7%3B%20stroke-width%3A%201.7%3B%20stroke-linecap%3A%20round%3B%20stroke-linejoin%3A%20round%3B%20fill%3A%20none%3B%20opacity%3A%200.50%3B%20%7D%0A%20%20%20%20%20%20.gf%20%7B%20fill%3A%20%230284c7%3B%20opacity%3A%200.50%3B%20%7D%0A%20%20%20%20%3C/style%3E%0A%20%20%3C/defs%3E%0A%20%20%3C%21--%20Panal%20de%20hex%C3%A1gonos%20100%25%20pegados%20y%20continuos%20--%3E%0A%20%20%3Cpolygon%20points%3D%2214%2C-24%2028%2C-16%2028%2C0%2014%2C8%200%2C0%200%2C-16%22%20class%3D%22h%22/%3E%3Cpolygon%20points%3D%2242%2C-24%2056%2C-16%2056%2C0%2042%2C8%2028%2C0%2028%2C-16%22%20class%3D%22h%22/%3E%3Cpolygon%20points%3D%2270%2C-24%2084%2C-16%2084%2C0%2070%2C8%2056%2C0%2056%2C-16%22%20class%3D%22h%22/%3E%3Cpolygon%20points%3D%2298%2C-24%20112%2C-16%20112%2C0%2098%2C8%2084%2C0%2084%2C-16%22%20class%3D%22h%22/%3E%3Cpolygon%20points%3D%22126%2C-24%20140%2C-16%20140%2C0%20126%2C8%20112%2C0%20112%2C-16%22%20class%3D%22h%22/%3E%3Cpolygon%20points%3D%2214%2C0%2028%2C8%2028%2C24%2014%2C32%200%2C24%200%2C8%22%20class%3D%22h%22/%3E%3Cpolygon%20points%3D%2242%2C0%2056%2C8%2056%2C24%2042%2C32%2028%2C24%2028%2C8%22%20class%3D%22h%22/%3E%3Cpolygon%20points%3D%2270%2C0%2084%2C8%2084%2C24%2070%2C32%2056%2C24%2056%2C8%22%20class%3D%22h%22/%3E%3Cpolygon%20points%3D%2298%2C0%20112%2C8%20112%2C24%2098%2C32%2084%2C24%2084%2C8%22%20class%3D%22h%22/%3E%3Cpolygon%20points%3D%22126%2C0%20140%2C8%20140%2C24%20126%2C32%20112%2C24%20112%2C8%22%20class%3D%22h%22/%3E%3Cpolygon%20points%3D%220%2C24%2014%2C32%2014%2C48%200%2C56%20-14%2C48%20-14%2C32%22%20class%3D%22h%22/%3E%3Cpolygon%20points%3D%2228%2C24%2042%2C32%2042%2C48%2028%2C56%2014%2C48%2014%2C32%22%20class%3D%22h%22/%3E%3Cpolygon%20points%3D%2256%2C24%2070%2C32%2070%2C48%2056%2C56%2042%2C48%2042%2C32%22%20class%3D%22h%22/%3E%3Cpolygon%20points%3D%2284%2C24%2098%2C32%2098%2C48%2084%2C56%2070%2C48%2070%2C32%22%20class%3D%22h%22/%3E%3Cpolygon%20points%3D%22112%2C24%20126%2C32%20126%2C48%20112%2C56%2098%2C48%2098%2C32%22%20class%3D%22h%22/%3E%3Cpolygon%20points%3D%2214%2C48%2028%2C56%2028%2C72%2014%2C80%200%2C72%200%2C56%22%20class%3D%22h%22/%3E%3Cpolygon%20points%3D%2242%2C48%2056%2C56%2056%2C72%2042%2C80%2028%2C72%2028%2C56%22%20class%3D%22h%22/%3E%3Cpolygon%20points%3D%2270%2C48%2084%2C56%2084%2C72%2070%2C80%2056%2C72%2056%2C56%22%20class%3D%22h%22/%3E%3Cpolygon%20points%3D%2298%2C48%20112%2C56%20112%2C72%2098%2C80%2084%2C72%2084%2C56%22%20class%3D%22h%22/%3E%3Cpolygon%20points%3D%22126%2C48%20140%2C56%20140%2C72%20126%2C80%20112%2C72%20112%2C56%22%20class%3D%22h%22/%3E%3Cpolygon%20points%3D%220%2C72%2014%2C80%2014%2C96%200%2C104%20-14%2C96%20-14%2C80%22%20class%3D%22h%22/%3E%3Cpolygon%20points%3D%2228%2C72%2042%2C80%2042%2C96%2028%2C104%2014%2C96%2014%2C80%22%20class%3D%22h%22/%3E%3Cpolygon%20points%3D%2256%2C72%2070%2C80%2070%2C96%2056%2C104%2042%2C96%2042%2C80%22%20class%3D%22h%22/%3E%3Cpolygon%20points%3D%2284%2C72%2098%2C80%2098%2C96%2084%2C104%2070%2C96%2070%2C80%22%20class%3D%22h%22/%3E%3Cpolygon%20points%3D%22112%2C72%20126%2C80%20126%2C96%20112%2C104%2098%2C96%2098%2C80%22%20class%3D%22h%22/%3E%3Cpolygon%20points%3D%2214%2C96%2028%2C104%2028%2C120%2014%2C128%200%2C120%200%2C104%22%20class%3D%22h%22/%3E%3Cpolygon%20points%3D%2242%2C96%2056%2C104%2056%2C120%2042%2C128%2028%2C120%2028%2C104%22%20class%3D%22h%22/%3E%3Cpolygon%20points%3D%2270%2C96%2084%2C104%2084%2C120%2070%2C128%2056%2C120%2056%2C104%22%20class%3D%22h%22/%3E%3Cpolygon%20points%3D%2298%2C96%20112%2C104%20112%2C120%2098%2C128%2084%2C120%2084%2C104%22%20class%3D%22h%22/%3E%3Cpolygon%20points%3D%22126%2C96%20140%2C104%20140%2C120%20126%2C128%20112%2C120%20112%2C104%22%20class%3D%22h%22/%3E%0A%20%20%3C%21--%20S%C3%ADmbolos%20aut%C3%A9nticos%20Covenant%20variados%20--%3E%0A%20%20%3Cpath%20d%3D%22M%2014%2C9%20L%2014%2C21%20Q%2014%2C24%2011%2C24%22%20class%3D%22g%22/%3E%3Cline%20x1%3D%229%22%20y1%3D%2213%22%20x2%3D%2219%22%20y2%3D%2213%22%20class%3D%22g%22/%3E%3Cline%20x1%3D%2210%22%20y1%3D%2217%22%20x2%3D%2218%22%20y2%3D%2217%22%20class%3D%22g%22/%3E%3Cpath%20d%3D%22M%2037%2C11%20L%2046%2C11%20L%2040%2C16%20L%2046%2C21%20L%2037%2C21%22%20class%3D%22g%22/%3E%3Ccircle%20cx%3D%2241%22%20cy%3D%2216%22%20r%3D%221.3%22%20class%3D%22gf%22/%3E%3Cline%20x1%3D%2270%22%20y1%3D%2210%22%20x2%3D%2270%22%20y2%3D%2222%22%20class%3D%22g%22/%3E%3Cpath%20d%3D%22M%2065%2C14%20L%2070%2C17%20L%2075%2C14%22%20class%3D%22g%22/%3E%3Cline%20x1%3D%2265%22%20y1%3D%2222%22%20x2%3D%2275%22%20y2%3D%2222%22%20class%3D%22g%22/%3E%3Cpath%20d%3D%22M%2098%2C11%20C%2092%2C11%2092%2C21%2098%2C21%20C%20104%2C21%20104%2C15%2098%2C15%20L%20104%2C15%22%20class%3D%22g%22/%3E%3Ccircle%20cx%3D%2295%22%20cy%3D%2216%22%20r%3D%221.1%22%20class%3D%22gf%22/%3E%3Cline%20x1%3D%2222%22%20y1%3D%2237%22%20x2%3D%2232%22%20y2%3D%2237%22%20class%3D%22g%22/%3E%3Cline%20x1%3D%2222%22%20y1%3D%2240%22%20x2%3D%2234%22%20y2%3D%2240%22%20class%3D%22g%22/%3E%3Cline%20x1%3D%2222%22%20y1%3D%2243%22%20x2%3D%2232%22%20y2%3D%2243%22%20class%3D%22g%22/%3E%3Cpath%20d%3D%22M%2030%2C36%20L%2034%2C40%20L%2030%2C44%22%20class%3D%22g%22/%3E%3Cline%20x1%3D%2252%22%20y1%3D%2235%22%20x2%3D%2252%22%20y2%3D%2245%22%20class%3D%22g%22/%3E%3Cline%20x1%3D%2256%22%20y1%3D%2234%22%20x2%3D%2256%22%20y2%3D%2246%22%20class%3D%22g%22/%3E%3Cline%20x1%3D%2260%22%20y1%3D%2235%22%20x2%3D%2260%22%20y2%3D%2245%22%20class%3D%22g%22/%3E%3Cpath%20d%3D%22M%2079%2C36%20L%2084%2C33%20L%2089%2C36%22%20class%3D%22g%22/%3E%3Cpath%20d%3D%22M%2079%2C42%20L%2084%2C39%20L%2089%2C42%22%20class%3D%22g%22/%3E%3Cline%20x1%3D%2284%22%20y1%3D%2239%22%20x2%3D%2284%22%20y2%3D%2246%22%20class%3D%22g%22/%3E%3Cpath%20d%3D%22M%204%2C35%20L%20-4%2C39%20L%204%2C42%20L%20-4%2C46%22%20class%3D%22g%22/%3E%3Cline%20x1%3D%22-4%22%20y1%3D%2235%22%20x2%3D%224%22%20y2%3D%2246%22%20class%3D%22g%22%20style%3D%22opacity%3A0.4%3B%22/%3E%3Cpath%20d%3D%22M%20116%2C35%20L%20108%2C39%20L%20116%2C42%20L%20108%2C46%22%20class%3D%22g%22/%3E%3Cline%20x1%3D%22108%22%20y1%3D%2235%22%20x2%3D%22116%22%20y2%3D%2246%22%20class%3D%22g%22%20style%3D%22opacity%3A0.4%3B%22/%3E%3Cpath%20d%3D%22M%2018%2C58%20L%2012%2C58%20L%2012%2C70%22%20class%3D%22g%22/%3E%3Cline%20x1%3D%229%22%20y1%3D%2264%22%20x2%3D%2217%22%20y2%3D%2264%22%20class%3D%22g%22/%3E%3Cline%20x1%3D%229%22%20y1%3D%2268%22%20x2%3D%2217%22%20y2%3D%2268%22%20class%3D%22g%22/%3E%3Cpath%20d%3D%22M%2038%2C70%20L%2038%2C59%20L%2046%2C59%22%20class%3D%22g%22/%3E%3Cpolygon%20points%3D%2242%2C64%2045%2C67%2042%2C70%2039%2C67%22%20class%3D%22gf%22/%3E%3Cpath%20d%3D%22M%2074%2C59%20C%2065%2C59%2065%2C64%2070%2C64%20C%2075%2C64%2075%2C69%20C%2066%2C69%2066%2C69%22%20class%3D%22g%22/%3E%3Cline%20x1%3D%2267%22%20y1%3D%2263%22%20x2%3D%2273%22%20y2%3D%2265%22%20class%3D%22g%22/%3E%3Cpath%20d%3D%22M%2094%2C59%20Q%2092%2C64%2094%2C69%20Q%20102%2C64%2094%2C59%22%20class%3D%22g%22/%3E%3Ccircle%20cx%3D%2297%22%20cy%3D%2264%22%20r%3D%221.3%22%20class%3D%22gf%22/%3E%3Cpath%20d%3D%22M%2023%2C83%20L%2032%2C83%20L%2026%2C88%20L%2032%2C93%20L%2023%2C93%22%20class%3D%22g%22/%3E%3Ccircle%20cx%3D%2227%22%20cy%3D%2288%22%20r%3D%221.3%22%20class%3D%22gf%22/%3E%3Cpath%20d%3D%22M%2056%2C83%20C%2050%2C83%2050%2C93%2056%2C93%20C%2062%2C93%2062%2C87%2056%2C87%20L%2062%2C87%22%20class%3D%22g%22/%3E%3Ccircle%20cx%3D%2253%22%20cy%3D%2288%22%20r%3D%221.1%22%20class%3D%22gf%22/%3E%3Cpath%20d%3D%22M%2084%2C81%20L%2084%2C93%20Q%2084%2C96%2081%2C96%22%20class%3D%22g%22/%3E%3Cline%20x1%3D%2279%22%20y1%3D%2285%22%20x2%3D%2289%22%20y2%3D%2285%22%20class%3D%22g%22/%3E%3Cline%20x1%3D%2280%22%20y1%3D%2289%22%20x2%3D%2288%22%20y2%3D%2289%22%20class%3D%22g%22/%3E%3Cline%20x1%3D%220%22%20y1%3D%2282%22%20x2%3D%220%22%20y2%3D%2294%22%20class%3D%22g%22/%3E%3Cpath%20d%3D%22M%20-5%2C86%20L%200%2C89%20L%205%2C86%22%20class%3D%22g%22/%3E%3Cline%20x1%3D%22-5%22%20y1%3D%2294%22%20x2%3D%225%22%20y2%3D%2294%22%20class%3D%22g%22/%3E%3Cline%20x1%3D%22112%22%20y1%3D%2282%22%20x2%3D%22112%22%20y2%3D%2294%22%20class%3D%22g%22/%3E%3Cpath%20d%3D%22M%20107%2C86%20L%20112%2C89%20L%20117%2C86%22%20class%3D%22g%22/%3E%3Cline%20x1%3D%22107%22%20y1%3D%2294%22%20x2%3D%22117%22%20y2%3D%2294%22%20class%3D%22g%22/%3E%0A%3C/svg%3E", "texture_size": "100% 100%, 112px 96px", "panel_surface": "linear-gradient(180deg, rgba(8, 20, 38, 0.88) 0%, rgba(3, 8, 18, 0.94) 100%)", "panel_border": "rgba(56, 189, 248, 0.32)", "panel_bevel": "rgba(186, 230, 253, 0.25)", "accent": "#38bdf8", "accent_bright": "#bae6fd", "logo_color": "#38bdf8", "logo_opacity": "0.18"}};
+    const LOGOS = {"unsc-titanium": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 120 100\" class=\"hud-insignia\">\n  <!-- Alas de aguila estilizadas -->\n  <path d=\"M 60,35 C 55,20 40,8 20,5 C 24,15 26,26 30,38 C 22,28 15,22 8,18 C 12,30 16,42 24,52 C 16,45 10,40 5,36 C 8,50 14,62 26,70 C 35,66 48,65 54,68 Z\" fill=\"currentColor\" opacity=\"0.85\"/>\n  <path d=\"M 60,35 C 65,20 80,8 100,5 C 96,15 94,26 90,38 C 98,28 105,22 112,18 C 108,30 104,42 96,52 C 104,45 110,40 115,36 C 112,50 106,62 94,70 C 85,66 72,65 66,68 Z\" fill=\"currentColor\" opacity=\"0.85\"/>\n  <!-- Cabeza de aguila -->\n  <path d=\"M 54,32 C 54,26 58,22 62,22 C 66,22 67,25 70,27 C 67,29 65,30 63,30 C 63,34 60,36 57,36 Z\" fill=\"currentColor\"/>\n  <!-- Escudo central -->\n  <path d=\"M 44,48 L 76,48 L 72,76 L 60,84 L 48,76 Z\" fill=\"var(--bg)\" stroke=\"currentColor\" stroke-width=\"2.5\"/>\n  <!-- Texto UNSC dentro del escudo -->\n  <text x=\"60\" y=\"65\" font-family=\"'Teko', sans-serif\" font-size=\"16\" font-weight=\"700\" fill=\"currentColor\" text-anchor=\"middle\" letter-spacing=\"1\">UNSC</text>\n  <!-- Liston inferior -->\n  <path d=\"M 32,84 Q 60,94 88,84 L 84,80 Q 60,89 36,80 Z\" fill=\"currentColor\" opacity=\"0.7\"/>\n</svg>", "oni-blackops": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\" class=\"hud-insignia\">\n  <circle cx=\"50\" cy=\"50\" r=\"46\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" opacity=\"0.4\"/>\n  <circle cx=\"50\" cy=\"50\" r=\"40\" fill=\"currentColor\" opacity=\"0.12\"/>\n  <!-- Triangulo invertido interior con ojo estilizado -->\n  <polygon points=\"50,18 78,72 22,72\" fill=\"currentColor\" opacity=\"0.85\"/>\n  <circle cx=\"50\" cy=\"52\" r=\"13\" fill=\"var(--bg)\"/>\n  <circle cx=\"50\" cy=\"52\" r=\"7\" fill=\"currentColor\"/>\n</svg>", "unsc-amber": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 120 100\" class=\"hud-insignia\">\n  <!-- Alas de aguila estilizadas -->\n  <path d=\"M 60,35 C 55,20 40,8 20,5 C 24,15 26,26 30,38 C 22,28 15,22 8,18 C 12,30 16,42 24,52 C 16,45 10,40 5,36 C 8,50 14,62 26,70 C 35,66 48,65 54,68 Z\" fill=\"currentColor\" opacity=\"0.85\"/>\n  <path d=\"M 60,35 C 65,20 80,8 100,5 C 96,15 94,26 90,38 C 98,28 105,22 112,18 C 108,30 104,42 96,52 C 104,45 110,40 115,36 C 112,50 106,62 94,70 C 85,66 72,65 66,68 Z\" fill=\"currentColor\" opacity=\"0.85\"/>\n  <!-- Cabeza de aguila -->\n  <path d=\"M 54,32 C 54,26 58,22 62,22 C 66,22 67,25 70,27 C 67,29 65,30 63,30 C 63,34 60,36 57,36 Z\" fill=\"currentColor\"/>\n  <!-- Escudo central -->\n  <path d=\"M 44,48 L 76,48 L 72,76 L 60,84 L 48,76 Z\" fill=\"var(--bg)\" stroke=\"currentColor\" stroke-width=\"2.5\"/>\n  <!-- Texto UNSC dentro del escudo -->\n  <text x=\"60\" y=\"65\" font-family=\"'Teko', sans-serif\" font-size=\"16\" font-weight=\"700\" fill=\"currentColor\" text-anchor=\"middle\" letter-spacing=\"1\">UNSC</text>\n  <!-- Liston inferior -->\n  <path d=\"M 32,84 Q 60,94 88,84 L 84,80 Q 60,89 36,80 Z\" fill=\"currentColor\" opacity=\"0.7\"/>\n</svg>", "unsc-bluefleet": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 120 100\" class=\"hud-insignia\">\n  <!-- Alas de aguila estilizadas -->\n  <path d=\"M 60,35 C 55,20 40,8 20,5 C 24,15 26,26 30,38 C 22,28 15,22 8,18 C 12,30 16,42 24,52 C 16,45 10,40 5,36 C 8,50 14,62 26,70 C 35,66 48,65 54,68 Z\" fill=\"currentColor\" opacity=\"0.85\"/>\n  <path d=\"M 60,35 C 65,20 80,8 100,5 C 96,15 94,26 90,38 C 98,28 105,22 112,18 C 108,30 104,42 96,52 C 104,45 110,40 115,36 C 112,50 106,62 94,70 C 85,66 72,65 66,68 Z\" fill=\"currentColor\" opacity=\"0.85\"/>\n  <!-- Cabeza de aguila -->\n  <path d=\"M 54,32 C 54,26 58,22 62,22 C 66,22 67,25 70,27 C 67,29 65,30 63,30 C 63,34 60,36 57,36 Z\" fill=\"currentColor\"/>\n  <!-- Escudo central -->\n  <path d=\"M 44,48 L 76,48 L 72,76 L 60,84 L 48,76 Z\" fill=\"var(--bg)\" stroke=\"currentColor\" stroke-width=\"2.5\"/>\n  <!-- Texto UNSC dentro del escudo -->\n  <text x=\"60\" y=\"65\" font-family=\"'Teko', sans-serif\" font-size=\"16\" font-weight=\"700\" fill=\"currentColor\" text-anchor=\"middle\" letter-spacing=\"1\">UNSC</text>\n  <!-- Liston inferior -->\n  <path d=\"M 32,84 Q 60,94 88,84 L 84,80 Q 60,89 36,80 Z\" fill=\"currentColor\" opacity=\"0.7\"/>\n</svg>", "covenant-sacristan": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 160 170\" class=\"hud-insignia\">\n  <!-- Domo superior masivo (hongo espacial de Gran Caridad) -->\n  <path d=\"M 80,18 C 30,18 10,48 10,68 C 10,74 25,78 40,79 C 55,80 70,82 80,82 C 90,82 105,80 120,79 C 135,78 150,74 150,68 C 150,48 130,18 80,18 Z\" fill=\"currentColor\" opacity=\"0.95\"/>\n  <!-- Detalles cr\u00e1teres y hendiduras bioluminiscentes en el domo -->\n  <path d=\"M 38,45 Q 52,38 68,44 Q 56,52 38,45 Z\" fill=\"#0b0314\" opacity=\"0.8\"/>\n  <circle cx=\"48\" cy=\"45\" r=\"3\" fill=\"currentColor\"/>\n  <path d=\"M 94,40 Q 112,36 126,42 Q 114,48 94,40 Z\" fill=\"#0b0314\" opacity=\"0.8\"/>\n  <circle cx=\"110\" cy=\"41\" r=\"2.5\" fill=\"currentColor\"/>\n  <!-- Resplandor del anillo inferior del domo (foso de la ciudad) -->\n  <ellipse cx=\"80\" cy=\"74\" rx=\"66\" ry=\"6\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" opacity=\"0.6\"/>\n  <!-- Spire / Aguja central y ramas de la ciudad colgante inferior -->\n  <path d=\"M 45,80 L 76,145 L 80,154 L 84,145 L 115,80 Z\" fill=\"currentColor\" opacity=\"0.35\"/>\n  <line x1=\"80\" y1=\"80\" x2=\"80\" y2=\"158\" stroke=\"currentColor\" stroke-width=\"3\" opacity=\"0.9\"/>\n  <!-- Brazos orbitales / muelles de atraque colgantes -->\n  <line x1=\"62\" y1=\"96\" x2=\"98\" y2=\"96\" stroke=\"currentColor\" stroke-width=\"2\" opacity=\"0.8\"/>\n  <line x1=\"68\" y1=\"112\" x2=\"92\" y2=\"112\" stroke=\"currentColor\" stroke-width=\"1.8\" opacity=\"0.75\"/>\n  <line x1=\"73\" y1=\"126\" x2=\"87\" y2=\"126\" stroke=\"currentColor\" stroke-width=\"1.5\" opacity=\"0.7\"/>\n  <!-- Tipograf\u00eda sagrada -->\n  <text x=\"80\" y=\"166\" font-family=\"'Teko', sans-serif\" font-size=\"14\" font-weight=\"700\" fill=\"currentColor\" text-anchor=\"middle\" letter-spacing=\"3\">HIGH CHARITY</text>\n</svg>", "covenant-zealot": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 160 160\" class=\"hud-insignia\">\n  <!-- Arco orbital exterior punteado -->\n  <circle cx=\"80\" cy=\"80\" r=\"74\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-dasharray=\"4,4\" opacity=\"0.4\"/>\n  <circle cx=\"80\" cy=\"80\" r=\"66\" fill=\"rgba(15, 6, 28, 0.45)\" stroke=\"currentColor\" stroke-width=\"2\" opacity=\"0.6\"/>\n  <!-- Glifo sagrado Covenant (Forma bio-mec\u00e1nica curva / Sangheili) -->\n  <path d=\"M 80,24 C 65,45 42,60 26,76 C 45,74 65,82 72,96 C 76,82 84,82 88,96 C 95,82 115,74 134,76 C 118,60 95,45 80,24 Z\" fill=\"currentColor\" opacity=\"0.95\"/>\n  <!-- Ojo / N\u00facleo de Plasma Superior -->\n  <ellipse cx=\"80\" cy=\"54\" rx=\"7\" ry=\"12\" fill=\"#0b0314\" stroke=\"currentColor\" stroke-width=\"2\"/>\n  <circle cx=\"80\" cy=\"54\" r=\"3.5\" fill=\"currentColor\"/>\n  <!-- Garras inferiores / Cuernos del Gran Viaje -->\n  <path d=\"M 40,84 C 34,106 48,124 64,132 C 55,120 54,104 60,94 Z\" fill=\"currentColor\" opacity=\"0.9\"/>\n  <path d=\"M 120,84 C 126,106 112,124 96,132 C 105,120 106,104 100,94 Z\" fill=\"currentColor\" opacity=\"0.9\"/>\n  <!-- Anillo sagrado / Halo miniatura flotante -->\n  <ellipse cx=\"80\" cy=\"116\" rx=\"14\" ry=\"4.5\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" opacity=\"0.9\"/>\n  <!-- Tipograf\u00eda Forerunner / Sangheili -->\n  <text x=\"80\" y=\"148\" font-family=\"'Teko', sans-serif\" font-size=\"16\" font-weight=\"700\" fill=\"currentColor\" text-anchor=\"middle\" letter-spacing=\"4\">COVENANT</text>\n  <text x=\"80\" y=\"157\" font-family=\"'Share Tech Mono', monospace\" font-size=\"7\" fill=\"currentColor\" opacity=\"0.75\" text-anchor=\"middle\" letter-spacing=\"1.5\">HOLY ECUMENE FLEET</text>\n</svg>"};
+
+    function applyTheme(themeKey) {
+      const t = THEMES[themeKey];
+      if (!t) return;
+
+      const r = document.documentElement;
+      r.style.setProperty('--bg', t.bg_col);
+      r.style.setProperty('--theme-glow', t.glow);
+      r.style.setProperty('--theme-texture', 'url("' + t.texture_url + '")');
+      r.style.setProperty('--theme-size', t.texture_size);
+      r.style.setProperty('--panel-bg', t.panel_surface);
+      r.style.setProperty('--panel-border', t.panel_border);
+      r.style.setProperty('--panel-bevel', t.panel_bevel);
+      r.style.setProperty('--accent', t.accent);
+      r.style.setProperty('--accent-bright', t.accent_bright);
+      r.style.setProperty('--accent-dim', t.accent === '#f8fafc' ? 'rgba(255,255,255,0.08)' : t.accent + '1a');
+      r.style.setProperty('--logo-color', t.logo_color);
+      r.style.setProperty('--logo-opacity', t.logo_opacity);
+
+      const svgCode = LOGOS[themeKey];
+      document.getElementById('brand-logo-icon').innerHTML = svgCode;
+      document.getElementById('bg-watermark-icon').innerHTML = svgCode;
+      document.getElementById('brand-org-tag').textContent = t.org;
+
+      localStorage.setItem('halo_theme', themeKey);
+      document.getElementById('theme-selector-ctrl').value = themeKey;
+    }
+
+    function switchTab(panelId, btn) {
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.nav-tab').forEach(b => b.classList.remove('active'));
+      document.getElementById(panelId).classList.add('active');
+      btn.classList.add('active');
+      if (panelId === 'tab-terminal') refreshLogs();
+    }
+
+    
+    async function saveCoopSettings() {
+      const enemies = document.getElementById('cfg-coop-enemies').value;
+      const pickups = document.getElementById('cfg-coop-pickups').value;
+      const ff = document.getElementById('cfg-coop-ff').value;
+      const share = document.getElementById('cfg-coop-share').value;
+      try {
+        await fetch('/api/settings', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            'network.coop_enemies_mode': enemies,
+            'network.coop_pickups': pickups,
+            'network.coop_friendly_fire': ff,
+            'network.map_share': share === 'true'
+          })
+        });
+        showToast('PARÁMETROS CO-OP GUARDADOS');
+      } catch (e) {
+        showToast('ERROR AL GUARDAR AJUSTES CO-OP');
+      }
+    }
+
+    
+    
+    function updateRotOptions() {
+      const type = document.getElementById('rot-next-type').value;
+      const mapSel = document.getElementById('rot-map-sel');
+      const modeSel = document.getElementById('rot-mode-sel');
+      if (type === 'coop') {
+        mapSel.innerHTML = `
+          <option value="a10">The Pillar of Autumn (a10)</option>
+          <option value="a30">Halo (a30)</option>
+          <option value="a50">The Truth and Reconciliation (a50)</option>
+          <option value="b30">The Silent Cartographer (b30)</option>
+          <option value="b40">Assault on the Control Room (b40)</option>
+          <option value="c10">343 Guilty Spark (c10)</option>
+          <option value="c20">The Library (c20)</option>
+          <option value="c40">Two Betrayals (c40)</option>
+          <option value="d20">Keyes (d20)</option>
+          <option value="d40">The Maw (d40)</option>
+        `;
+        modeSel.innerHTML = `<option value="coop" selected>Co-Op (Campaña)</option>`;
+      } else {
+        mapSel.innerHTML = `
+          <option value="beavercreek">Battle Creek (beavercreek)</option>
+          <option value="bloodgulch">Blood Gulch (bloodgulch)</option>
+          <option value="boardingaction">Boarding Action (boardingaction)</option>
+          <option value="carousel">Derelict (carousel)</option>
+          <option value="chillout">Chill Out (chillout)</option>
+          <option value="damnation">Damnation (damnation)</option>
+          <option value="hangemhigh">Hang 'Em High (hangemhigh)</option>
+          <option value="longest">Longest (longest)</option>
+          <option value="prisoner">Prisoner (prisoner)</option>
+          <option value="putput">Chiron TL-34 (putput)</option>
+          <option value="ratrace">Rat Race (ratrace)</option>
+          <option value="sidewinder">Sidewinder (sidewinder)</option>
+          <option value="wizard">Wizard (wizard)</option>
+        `;
+        modeSel.innerHTML = `
+          <option value="slayer">Slayer (Asesino)</option>
+          <option value="team_slayer">Team Slayer</option>
+          <option value="ctf">Capture The Flag</option>
+          <option value="gun_game">Gun Game (Juego de Armas)</option>
+          <option value="infection">Infection (Infección)</option>
+          <option value="swat">SWAT</option>
+          <option value="oddball">Oddball</option>
+          <option value="king">King of the Hill</option>
+          <option value="race">Race (Carrera)</option>
+          <option value="hardcore">Hardcore</option>
+        `;
+      }
+    }
+
+    
+    async function loadRealSettings() {
+      try {
+        const res = await fetch('/api/settings');
+        if (!res.ok) return;
+        const d = await res.json();
+        if (!d.settings) return;
+        d.settings.forEach(s => {
+          if (s.name === 'network.server_name') document.getElementById('cfg-server-name').value = s.value || '';
+          if (s.name === 'network.tunnel_port') document.getElementById('cfg-tunnel-port').value = s.value || 2302;
+          if (s.name === 'server.region') document.getElementById('cfg-server-region').value = s.value || 'na-east';
+          if (s.name === 'network.host_public') document.getElementById('cfg-host-public').value = s.value ? 'true' : 'false';
+          if (s.name === 'network.public_chat') document.getElementById('cfg-public-chat').value = s.value ? 'true' : 'false';
+          if (s.name === 'server.chat_filter') document.getElementById('cfg-chat-filter').value = s.value || 'off';
+          if (s.name === 'network.afk_timeout') document.getElementById('cfg-afk-timeout').value = String(s.value);
+          if (s.name === 'network.map_share') document.getElementById('cfg-map-share').value = s.value ? 'true' : 'false';
+          if (s.name === 'network.map_share_upload') document.getElementById('cfg-map-upload').value = s.value || 1024;
+          if (s.name === 'webhooks.discord') document.getElementById('cfg-webhook-discord').value = s.value || '';
+        });
+      } catch(e) {}
+    }
+
+    async function saveAllServerSettings() {
+      const payload = {
+        'network.server_name': document.getElementById('cfg-server-name').value.trim(),
+        'network.tunnel_port': parseInt(document.getElementById('cfg-tunnel-port').value, 10),
+        'server.region': document.getElementById('cfg-server-region').value,
+        'network.host_public': document.getElementById('cfg-host-public').value === 'true',
+        'network.public_chat': document.getElementById('cfg-public-chat').value === 'true',
+        'server.chat_filter': document.getElementById('cfg-chat-filter').value,
+        'network.afk_timeout': parseInt(document.getElementById('cfg-afk-timeout').value, 10),
+        'debug.network_test_player': document.getElementById('cfg-dummy-bot').value === 'true',
+        'network.map_share': document.getElementById('cfg-map-share').value === 'true',
+        'network.map_share_upload': parseInt(document.getElementById('cfg-map-upload').value, 10),
+        'webhooks.discord': document.getElementById('cfg-webhook-discord').value.trim()
+      };
+      const pwd = document.getElementById('cfg-server-password').value.trim();
+      if (pwd) payload['network.server_password'] = pwd;
+
+      try {
+        const res = await fetch('/api/settings', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        showToast('PARÁMETROS GUARDADOS Y APLICADOS EN CONFIG.TOML');
+        loadRealSettings();
+      } catch(e) {
+        showToast('ERROR AL APLICAR AJUSTES');
+      }
+    }
+
+    async function applyNextMatch() {
+      const map = document.getElementById('rot-map-sel').value;
+      const mode = document.getElementById('rot-mode-sel').value;
+      await execHs('sv_map ' + map + ' ' + mode);
+      showToast('SIGUIENTE PARTIDA FIJADA: ' + map.toUpperCase() + ' (' + mode.toUpperCase() + ')');
+    }
+
+    async function saveRotationRules() {
+      const rmode = document.getElementById('cfg-rot-mode').value;
+      const rvoting = document.getElementById('cfg-rot-voting').value === 'true';
+      const rtime = parseInt(document.getElementById('cfg-rot-time').value, 10);
+      try {
+        await fetch('/api/settings', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            'network.map_rotation': rmode,
+            'network.map_voting': rvoting,
+            'debug.network_test_time': rtime
+          })
+        });
+        showToast('REGLAS DE ROTACIÓN GUARDADAS');
+      } catch(e) {
+        showToast('ERROR AL GUARDAR ROTACIÓN');
+      }
+    }
+
+    async function sendServerChat() {
+      const inp = document.getElementById('chat-input');
+      const val = inp.value.trim();
+      if (!val) return;
+      try {
+        await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: val })
+        });
+        inp.value = '';
+        refreshChat();
+      } catch(e) {
+        showToast('ERROR AL ENVIAR CHAT');
+      }
+    }
+
+    async function refreshChat() {
+      try {
+        const res = await fetch('/api/chat');
+        if (!res.ok) return;
+        const d = await res.json();
+        const out = document.getElementById('chat-output');
+        if (d.chat && d.chat.length > 0) {
+          out.innerHTML = d.chat.map(m => `
+            <div><span style="color:#38bdf8;">[${m.sender}]</span>: <span>${m.text}</span></div>
+          `).join('');
+          out.scrollTop = out.scrollHeight;
+        }
+      } catch(e) {}
+    }
+
+    async function forceQuickMap() {
+      const map = document.getElementById('quick-map-sel').value;
+      const mode = document.getElementById('quick-mode-sel').value;
+      await execHs('sv_map ' + map + ' ' + mode);
+    }
+
+    async function launchCoopMission() {
+      const mission = document.getElementById('coop-mission-sel').value;
+      await execHs('sv_map ' + mission + ' coop');
+      showToast('MISIÓN CO-OP INICIADA: ' + mission.toUpperCase());
+    }
+
+    async function banAddressDirect() {
+      const ip = document.getElementById('ban-ip-input').value.trim();
+      if (!ip) return;
+      await execHs('sv_ban_address ' + ip);
+      document.getElementById('ban-ip-input').value = '';
+      refreshBans();
+    loadRealSettings();
+    }
+
+    
+    async function unbanTarget(target) {
+      try {
+        const res = await fetch('/api/unban', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ target: target })
+        });
+        const d = await res.json();
+        showToast('DESBANEADO EXITOSO: ' + target);
+        refreshBans();
+      } catch(e) {
+        showToast('ERROR AL DESBANEAR');
+      }
+    }
+
+    async function refreshBans() {
+      try {
+        const res = await fetch('/api/bans');
+        if (!res.ok) return;
+        const d = await res.json();
+        const tbody = document.getElementById('bans-body');
+        if (!d.bans || d.bans.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:14px;color:var(--text-muted);">NO HAY VETOS REGISTRADOS EN BANS.TXT</td></tr>';
+          return;
+        }
+        tbody.innerHTML = d.bans.map(b => `
+          <tr>
+            <td><code>${b.ip}</code></td>
+            <td><code>${b.hwid}</code></td>
+            <td>${b.reason}</td>
+            <td style="text-align:right;"><button class="hud-btn" style="min-height:28px;padding:2px 8px;font-size:11px;" onclick="unbanTarget('${b.ip}')">DESBANEAR</button></td>
+          </tr>
+        `).join('');
+      } catch (e) {}
+    }
+
+    async function saveServerOps() {
+      const name = document.getElementById('cfg-name').value.trim();
+      const region = document.getElementById('cfg-region').value;
+      const dummy = document.getElementById('cfg-dummy-player').value === 'true';
+      const cfilter = document.getElementById('cfg-chat-filter').value;
+      const pchat = document.getElementById('cfg-public-chat').value === 'true';
+      try {
+        await fetch('/api/settings', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            'network.server_name': name,
+            'server.region': region,
+            'debug.network_test_player': dummy,
+            'server.chat_filter': cfilter,
+            'network.public_chat': pchat
+          })
+        });
+        showToast('PARÁMETROS DEL SERVIDOR GUARDADOS');
+      } catch(e) {
+        showToast('ERROR AL GUARDAR AJUSTES');
+      }
+    }
+
+    async function refreshStatus() {
+      try {
+        const res = await fetch('/api/status');
+        if (!res.ok) return;
+        const d = await res.json();
+        document.getElementById('kpi-map').textContent = (d.map || 'PRISONER').toUpperCase();
+        document.getElementById('kpi-mode').textContent = 'MODO: ' + (d.variant || d.gametype || 'SLAYER').toUpperCase();
+        document.getElementById('kpi-players').textContent = (d.players || 0) + ' / ' + (d.max_players || 16) + ' SLOTS';
+        document.getElementById('tab-pcount').textContent = d.players || 0;
+        document.getElementById('table-count').textContent = (d.players || 0) + ' PRESENTES';
+        document.getElementById('kpi-tick').textContent = ((d.tickrate || 30.0).toFixed(1)) + ' HZ';
+        
+        if (d.rss_kb) {
+          const mb = (d.rss_kb / 1024).toFixed(1);
+          document.getElementById('kpi-ram').textContent = mb + ' MB';
+        }
+        if (d.uptime) {
+          const hrs = Math.floor(d.uptime / 3600);
+          const mins = Math.floor((d.uptime % 3600) / 60);
+          document.getElementById('kpi-uptime-val').textContent = hrs + 'H ' + mins + 'M';
+        }
+        if (d.node_info) {
+          document.getElementById('node-env-tag').textContent = d.node_info;
+        }
+        if (d.name) {
+          document.getElementById('host-badge').textContent = 'HOST: ' + d.name;
+        }
+      } catch (e) {}
+    }
+
+    async function refreshPlayers() {
+      try {
+        const res = await fetch('/api/players');
+        if (!res.ok) return;
+        const d = await res.json();
+        const tbody = document.getElementById('players-body');
+        if (!d.players || d.players.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:24px;">NO HAY JUGADORES HUMANOS CONECTADOS.</td></tr>';
+          return;
+        }
+        tbody.innerHTML = d.players.map(p => `
+          <tr>
+            <td>[${p.slot}]</td>
+            <td><strong>${p.name}</strong></td>
+            <td><code style="font-size:11px;">${p.hwid || 'n/a'}</code></td>
+            <td>${p.team === 0 ? 'ROJO' : 'AZUL'}</td>
+            <td>${p.score || 0}</td>
+            <td><span style="color:#34d399;">${p.ping || 20} ms</span></td>
+            <td style="text-align:right;">
+              <button class="hud-btn" style="min-height:30px;padding:2px 8px;font-size:12px;" onclick="execHs('kick ' + '${p.name}')">KICK</button>
+              <button class="hud-btn hud-btn-red" style="min-height:30px;padding:2px 8px;font-size:12px;" onclick="execHs('ban ' + '${p.name}')">BAN</button>
+            </td>
+          </tr>
+        `).join('');
+      } catch (e) {}
+    }
+
+    async function refreshLogs() {
+      try {
+        const res = await fetch('/api/log');
+        if (!res.ok) return;
+        const d = await res.json();
+        const out = document.getElementById('logs-output');
+        if (d.lines && d.lines.length > 0) {
+          out.textContent = d.lines.join('\n');
+          out.scrollTop = out.scrollHeight;
+        }
+      } catch (e) {}
+    }
+
+    async function execHs(cmd) {
+      if (cmd.toLowerCase() === 'cls' || cmd.toLowerCase() === 'clear') {
+        document.getElementById('cli-output').textContent = 'Consola limpia.';
+        return;
+      }
+      try {
+        const res = await fetch('/api/command', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ line: cmd })
+        });
+        const d = await res.json();
+        if (d.lines && d.lines.length > 0) {
+          logCli('> ' + cmd + '\n' + d.lines.join('\n'));
+        } else {
+          logCli('> ' + cmd + ' [OK]');
+        }
+        showToast('EJECUTADO: ' + cmd);
+      } catch (e) {
+        showToast('ERROR AL EJECUTAR');
+      }
+    }
+
+    function sendCli() {
+      const inp = document.getElementById('cli-input');
+      const val = inp.value.trim();
+      if (!val) return;
+      execHs(val);
+      inp.value = '';
+    }
+
+    function logCli(text) {
+      const out = document.getElementById('cli-output');
+      out.textContent += '\n' + text;
+      out.scrollTop = out.scrollHeight;
+    }
+
+    function showToast(text) {
+      const t = document.getElementById('hud-toast');
+      t.textContent = text;
+      t.style.display = 'block';
+      setTimeout(() => { t.style.display = 'none'; }, 2500);
+    }
+
+    document.getElementById('btn-skip').addEventListener('click', async () => {
+      await fetch('/api/rotation/play', { method: 'POST' });
+      showToast('SALTANDO A SIGUIENTE PARTIDA...');
+      setTimeout(refreshStatus, 1500);
+    });
+    document.getElementById('btn-shuffle').addEventListener('click', () => execHs('sv_map beavercreek slayer'));
+    document.getElementById('btn-stop').addEventListener('click', () => execHs('sv_end_game'));
+
+    const savedTheme = localStorage.getItem('halo_theme') || 'unsc-titanium';
+    applyTheme(savedTheme);
+
+    setInterval(refreshStatus, 3000);
+    setInterval(refreshChat, 2000);
+    setInterval(refreshLogs, 2500);
+    refreshChat();
+    refreshLogs();
+    refreshBans();
+    setInterval(refreshStatus, 3000);
+    setInterval(refreshPlayers, 3000);
+    refreshStatus();
+    refreshPlayers();
+  </script>
 </body>
 </html>
