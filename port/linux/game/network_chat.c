@@ -1021,6 +1021,7 @@ static byte chat_config_flags(
 	return chat_config.known && !chat_joined_listed() ? chat_config.flags : 0;
 }
 
+static void chat_host_notice(long machine_index, char const *text);
 static void chat_send_to_clients(void *message, byte type, word size);
 
 /* (the host, in a game) its chat settings sent to every client as they
@@ -1180,6 +1181,12 @@ void network_chat_add_notice(
 	char const *text)
 {
 	chat_add_notice(text);
+}
+
+void network_chat_broadcast(const char *text)
+{
+	if (!text || !text[0]) return;
+	chat_host_notice(NONE, text);
 }
 
 /* ---------- the host */
@@ -1428,6 +1435,8 @@ static void chat_host_notice(
 			(word)sizeof(message));
 		return;
 	}
+
+
 	chat_send_to_clients(&message, _distributed_message_chat_down, (word)sizeof(message));
 	chat_add_notice(text);
 }

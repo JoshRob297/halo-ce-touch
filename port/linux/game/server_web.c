@@ -704,9 +704,11 @@ int server_web_dispatch(int client_fd, const char *method, const char *path, con
 			if (extract_json_string(buffer, "message", msg, sizeof(msg)))
 			{
 				extern void server_chat_record_message(const char *sender, const char *msg, short channel);
-				extern void network_chat_say(short channel, char const *text);
+				extern void network_chat_broadcast(const char *text);
+				char notice[160];
+				snprintf(notice, sizeof(notice), "[SERVER]: %s", msg);
 				server_chat_record_message("SERVER", msg, 0);
-				network_chat_say(0, msg);
+				network_chat_broadcast(notice);
 				send_json_object(client_fd, "{\"ok\":true}\n");
 				return 1;
 			}
@@ -741,9 +743,11 @@ int server_web_dispatch(int client_fd, const char *method, const char *path, con
 						{
 							const char *msg_to_send = (strncmp(cmd, "say ", 4) == 0) ? (cmd + 4) : (cmd + 10);
 							extern void server_chat_record_message(const char *sender, const char *msg, short channel);
-							extern void network_chat_say(short channel, char const *text);
+							extern void network_chat_broadcast(const char *text);
+							char notice[160];
+							snprintf(notice, sizeof(notice), "[SERVER]: %s", msg_to_send);
 							server_chat_record_message("SERVER", msg_to_send, 0);
-							network_chat_say(0, msg_to_send);
+							network_chat_broadcast(notice);
 							send_json_object(client_fd, "{\"ok\":true,\"lines\":[\"Mensaje emitido en el chat de partida\"]}\n");
 							return 1;
 						}
