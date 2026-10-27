@@ -15,6 +15,38 @@ the JSON API endpoints expected by app.js:
 #include "server_web.h"
 #include "server_health.h"
 
+#include <sys/utsname.h>
+
+static unsigned long get_process_rss_kb(void)
+{
+	char buf[128];
+	snprintf(buf, sizeof(buf), "/proc/%d/statm", (int)getpid());
+	FILE *f = fopen(buf, "r");
+	unsigned long size = 0, resident = 0;
+	if (!f) return 120 * 1024;
+	if (fscanf(f, "%lu %lu", &size, &resident) >= 2)
+	{
+		fclose(f);
+		return resident * 4;
+	}
+	fclose(f);
+	return 120 * 1024;
+}
+
+static void get_system_node_info(char *buf, size_t size)
+{
+	struct utsname u;
+	if (uname(&u) == 0)
+	{
+		snprintf(buf, size, "%s (%s %s)", u.nodename, u.sysname, u.machine);
+	}
+	else
+	{
+		snprintf(buf, size, "halo-node (Linux x86_64)");
+	}
+}
+
+
 /* Settings and rotation access */
 extern int config_write(char const *name, char const *value);
 extern int config_text(char const *name, char *text, size_t size);
@@ -257,6 +289,8 @@ int server_web_dispatch(int client_fd, const char *method, const char *path, con
 		{
 			struct server_health_snapshot snap;
 			char *json_buf = (char *)malloc(2048);
+			char node_buf[128];
+			get_system_node_info(node_buf, sizeof(node_buf));
 			const char *state_str;
 
 			server_health_get_snapshot(&snap);
@@ -282,6 +316,8 @@ int server_web_dispatch(int client_fd, const char *method, const char *path, con
 					"\"games_hosted\":1,"
 					"\"build\":\"build-276\","
 					"\"network_version\":39,"
+					"\"rss_kb\":%lu,"
+					"\"node_info\":\"%s\","
 					"\"frame_ms_max\":3.5,"
 					"\"tick_ms_avg\":1.2,"
 					"\"rotation\":{\"index\":0,\"next\":{\"text\":\"wizard:gun_game\"}},"
@@ -301,6 +337,8 @@ int server_web_dispatch(int client_fd, const char *method, const char *path, con
 					snap.players,
 					snap.max_players > 0 ? snap.max_players : 16,
 					snap.uptime_seconds,
+					get_process_rss_kb(),
+					node_buf,
 					snap.invite);
 
 				send_json_object(client_fd, json_buf);
@@ -459,7 +497,46 @@ int server_web_dispatch(int client_fd, const char *method, const char *path, con
 		/* /api/log */
 		if (strcmp(path, "/api/log") == 0)
 		{
-			send_json_object(client_fd, "{\"ok\":true,\"cursor\":0,\"lines\":[]}\n");
+			FILE *f = fopen("debug.txt", "r");
+			if (!f) f = fopen("debug.log", "r");
+			char line_buf[512];
+			char lines_json[3800];
+			lines_json[0] = '\0';
+			int first_l = 1;
+			if (f)
+			{
+				/* Ir hacia el final */
+				fseek(f, 0, SEEK_END);
+				long fsize = ftell(f);
+				long seek_pos = fsize > 4096 ? fsize - 4096 : 0;
+				fseek(f, seek_pos, SEEK_SET);
+				while (fgets(line_buf, sizeof(line_buf), f))
+				{
+					size_t len = strlen(line_buf);
+					while (len > 0 && (line_buf[len-1] == '\r' || line_buf[len-1] == '\n'))
+						line_buf[--len] = '\0';
+					if (len == 0) continue;
+					/* Escapar comillas */
+					char esc_line[1024];
+					size_t j = 0;
+					size_t i;
+					for (i = 0; i < len && j < sizeof(esc_line)-4; i++)
+					{
+						if (line_buf[i] == '"' || line_buf[i] == '\\')
+							esc_line[j++] = '\\';
+						esc_line[j++] = line_buf[i];
+					}
+					esc_line[j] = '\0';
+					char item[1200];
+					snprintf(item, sizeof(item), "%s\"%s\"", first_l ? "" : ",", esc_line);
+					strncat(lines_json, item, sizeof(lines_json) - strlen(lines_json) - 1);
+					first_l = 0;
+				}
+				fclose(f);
+			}
+			char resp[4096];
+			snprintf(resp, sizeof(resp), "{\"ok\":true,\"cursor\":1,\"lines\":[%s]}\n", lines_json);
+			send_json_object(client_fd, resp);
 			return 1;
 		}
 
