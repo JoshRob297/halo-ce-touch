@@ -2177,6 +2177,10 @@ void network_test_update(
 						p2p_set_hosting_password(server_password && server_password[0] ? server_password : NULL);
 					}
 					server_health_start((short)config_integer("network.health_port"));
+					{
+						extern void server_master_start(void);
+						server_master_start();
+					}
 				}
 				platform_log("network test: hosting %s", network_test.map_name);
 				/* (in the server browser, as Create Game > Internet's PUBLIC) */
