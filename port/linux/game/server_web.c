@@ -15,6 +15,80 @@ the JSON API endpoints expected by app.js:
 #include "server_web.h"
 #include "server_health.h"
 
+
+static int remove_ban_entry(const char *target)
+{
+	FILE *f = fopen("bans.txt", "r");
+	if (!f) f = fopen("/opt/halo-server/bans.txt", "r");
+	if (!f) return 0;
+
+	char lines[64][512];
+	int count = 0;
+	int removed = 0;
+	while (count < 64 && fgets(lines[count], sizeof(lines[count]), f))
+	{
+		if (target && target[0] && strstr(lines[count], target))
+		{
+			removed++;
+			continue;
+		}
+		count++;
+	}
+	fclose(f);
+
+	if (removed)
+	{
+		FILE *out = fopen("bans.txt", "w");
+		if (!out) out = fopen("/opt/halo-server/bans.txt", "w");
+		if (out)
+		{
+			int i;
+			for (i = 0; i < count; i++)
+				fputs(lines[i], out);
+			fclose(out);
+		}
+	}
+	return removed;
+}
+
+static int extract_json_string(const char *json, const char *key, char *out, size_t max_len)
+{
+	char pattern[64];
+	const char *found;
+	const char *start;
+	const char *end;
+	size_t len;
+
+	if (!json || !key || !out || max_len == 0)
+		return 0;
+
+	snprintf(pattern, sizeof(pattern), "\"%s\"", key);
+	found = strstr(json, pattern);
+	if (!found)
+		return 0;
+
+	found += strlen(pattern);
+	while (*found == ' ' || *found == '\t' || *found == ':')
+		found++;
+
+	if (*found != '"')
+		return 0;
+
+	start = found + 1;
+	end = strchr(start, '"');
+	if (!end)
+		return 0;
+
+	len = (size_t)(end - start);
+	if (len >= max_len)
+		len = max_len - 1;
+
+	memcpy(out, start, len);
+	out[len] = '\0';
+	return 1;
+}
+
+
 #include <sys/utsname.h>
 
 static unsigned long get_process_rss_kb(void)
@@ -540,32 +614,56 @@ int server_web_dispatch(int client_fd, const char *method, const char *path, con
 			return 1;
 		}
 
+		/* /api/chat */
+		if (strcmp(path, "/api/unban") == 0)
+		{
+			char target[128];
+			if (extract_json_string(buffer, "target", target, sizeof(target)))
+			{
+				int n = remove_ban_entry(target);
+				char resp[128];
+				snprintf(resp, sizeof(resp), "{\"ok\":true,\"removed\":%d}\n", n);
+				send_json_object(client_fd, resp);
+				return 1;
+			}
+			send_json_object(client_fd, "{\"ok\":false,\"error\":\"missing target\"}\n");
+			return 1;
+		}
+
+		if (strcmp(path, "/api/chat") == 0)
+		{
+			extern int server_chat_get_json(char *out, size_t max_len);
+			char chat_buf[4096];
+			server_chat_get_json(chat_buf, sizeof(chat_buf));
+			send_json_object(client_fd, chat_buf);
+			return 1;
+		}
+
 		/* /api/log */
 		if (strcmp(path, "/api/log") == 0)
 		{
 			FILE *f = fopen("debug.txt", "r");
-			if (!f) f = fopen("debug.log", "r");
+			if (!f) f = fopen("/opt/halo-server/debug.txt", "r");
 			char line_buf[512];
-			char lines_json[3800];
+			char lines_json[3900];
 			lines_json[0] = '\0';
 			int first_l = 1;
 			if (f)
 			{
-				/* Ir hacia el final */
 				fseek(f, 0, SEEK_END);
 				long fsize = ftell(f);
-				long seek_pos = fsize > 4096 ? fsize - 4096 : 0;
+				long seek_pos = fsize > 3000 ? fsize - 3000 : 0;
 				fseek(f, seek_pos, SEEK_SET);
+				if (seek_pos > 0)
+					fgets(line_buf, sizeof(line_buf), f);
 				while (fgets(line_buf, sizeof(line_buf), f))
 				{
 					size_t len = strlen(line_buf);
 					while (len > 0 && (line_buf[len-1] == '\r' || line_buf[len-1] == '\n'))
 						line_buf[--len] = '\0';
 					if (len == 0) continue;
-					/* Escapar comillas */
 					char esc_line[1024];
-					size_t j = 0;
-					size_t i;
+					size_t j = 0, i;
 					for (i = 0; i < len && j < sizeof(esc_line)-4; i++)
 					{
 						if (line_buf[i] == '"' || line_buf[i] == '\\')
@@ -575,8 +673,11 @@ int server_web_dispatch(int client_fd, const char *method, const char *path, con
 					esc_line[j] = '\0';
 					char item[1200];
 					snprintf(item, sizeof(item), "%s\"%s\"", first_l ? "" : ",", esc_line);
-					strncat(lines_json, item, sizeof(lines_json) - strlen(lines_json) - 1);
-					first_l = 0;
+					if (strlen(lines_json) + strlen(item) < sizeof(lines_json) - 10)
+					{
+						strcat(lines_json, item);
+						first_l = 0;
+					}
 				}
 				fclose(f);
 			}
@@ -597,6 +698,22 @@ int server_web_dispatch(int client_fd, const char *method, const char *path, con
 	/* 3. POST Commands */
 	if (strcmp(method, "POST") == 0)
 	{
+		if (strcmp(path, "/api/chat") == 0)
+		{
+			char msg[256];
+			if (extract_json_string(buffer, "message", msg, sizeof(msg)))
+			{
+				extern void server_chat_record_message(const char *sender, const char *msg, short channel);
+				extern void network_chat_say(short channel, char const *text);
+				server_chat_record_message("SERVER", msg, 0);
+				network_chat_say(0, msg);
+				send_json_object(client_fd, "{\"ok\":true}\n");
+				return 1;
+			}
+			send_json_object(client_fd, "{\"ok\":false,\"error\":\"missing message\"}\n");
+			return 1;
+		}
+
 		if (strcmp(path, "/api/command") == 0)
 		{
 			char const *line_ptr = buffer ? strstr(buffer, "\"line\":") : NULL;
@@ -610,6 +727,26 @@ int server_web_dispatch(int client_fd, const char *method, const char *path, con
 					if (end && (end - start < (int)sizeof(cmd)))
 					{
 						snprintf(cmd, (size_t)(end - start), "%s", start + 1);
+						if (strncmp(cmd, "sv_unban ", 9) == 0 || strncmp(cmd, "unban ", 6) == 0)
+						{
+							const char *tgt = (strncmp(cmd, "sv_unban ", 9) == 0) ? (cmd + 9) : (cmd + 6);
+							while (*tgt == ' ') tgt++;
+							int n = remove_ban_entry(tgt);
+							char resp[256];
+							snprintf(resp, sizeof(resp), "{\"ok\":true,\"lines\":[\"Desbaneo ejecutado: %d registro(s) eliminado(s) de bans.txt\"]}\n", n);
+							send_json_object(client_fd, resp);
+							return 1;
+						}
+						if (strncmp(cmd, "say ", 4) == 0 || strncmp(cmd, "broadcast ", 10) == 0)
+						{
+							const char *msg_to_send = (strncmp(cmd, "say ", 4) == 0) ? (cmd + 4) : (cmd + 10);
+							extern void server_chat_record_message(const char *sender, const char *msg, short channel);
+							extern void network_chat_say(short channel, char const *text);
+							server_chat_record_message("SERVER", msg_to_send, 0);
+							network_chat_say(0, msg_to_send);
+							send_json_object(client_fd, "{\"ok\":true,\"lines\":[\"Mensaje emitido en el chat de partida\"]}\n");
+							return 1;
+						}
 						if (strcmp(cmd, "help") == 0 || strcmp(cmd, "?") == 0)
 						{
 							send_json_object(client_fd,
