@@ -644,7 +644,7 @@ int server_web_dispatch(int client_fd, const char *method, const char *path, con
 			return 1;
 		}
 
-/* /api/rotation */
+/* /api/rotation - Devuelve exactamente los bloques de mapas agregados a la lista */
 		if (strcmp(path, "/api/rotation") == 0)
 		{
 			const char *test_spec = config_string("debug.network_test");
@@ -655,17 +655,16 @@ int server_web_dispatch(int client_fd, const char *method, const char *path, con
 			char *token;
 			int first = 1;
 			int entry_count = 0;
-			const int MAX_ROTATION_ITEMS = 32; /* Limite de seguridad: maximo 32 partidas en la playlist */
 			const char *p = strstr(test_spec, "host:");
 			entries_json[0] = '\0';
 			p = p ? p + 5 : test_spec;
 			strncpy(spec_copy, p, sizeof(spec_copy) - 1);
 			spec_copy[sizeof(spec_copy) - 1] = '\0';
 			token = strtok_r(spec_copy, ";", &saveptr1);
-			while (token && entry_count < MAX_ROTATION_ITEMS)
+			while (token && entry_count < 64)
 			{
-				char map[64];
-				char variants[256];
+				char map[64] = { 0 };
+				char variants[256] = { 0 };
 				char *colon = strchr(token, ':');
 				if (colon)
 				{
@@ -675,22 +674,19 @@ int server_web_dispatch(int client_fd, const char *method, const char *path, con
 					map[mlen] = '\0';
 					strncpy(variants, colon + 1, sizeof(variants) - 1);
 					variants[sizeof(variants) - 1] = '\0';
-					char *saveptr2;
-					char *var = strtok_r(variants, ",", &saveptr2);
-					while (var && entry_count < MAX_ROTATION_ITEMS)
-					{
-						char item[256];
-						snprintf(item, sizeof(item), "%s{\"text\":\"%s:%s\",\"map\":\"%s\",\"gametype\":\"%s\"}", first ? "" : ",", map, var, map, var);
-						strncat(entries_json, item, sizeof(entries_json) - strlen(entries_json) - 1);
-						first = 0;
-						entry_count++;
-						var = strtok_r(NULL, ",", &saveptr2);
-					}
 				}
 				else
 				{
-					char item[256];
-					snprintf(item, sizeof(item), "%s{\"text\":\"%s:slayer\",\"map\":\"%s\",\"gametype\":\"%s\"}", first ? "" : ",", token, token, strcmp(token, "a10") == 0 ? "coop" : "slayer");
+					strncpy(map, token, sizeof(map) - 1);
+					map[sizeof(map) - 1] = '\0';
+					snprintf(variants, sizeof(variants), "%s", strcmp(token, "a10") == 0 ? "coop" : "slayer");
+				}
+
+				if (map[0])
+				{
+					char item[350];
+					snprintf(item, sizeof(item), "%s{\"text\":\"%s\",\"map\":\"%s\",\"gametype\":\"%s\"}",
+						first ? "" : ",", token, map, variants);
 					strncat(entries_json, item, sizeof(entries_json) - strlen(entries_json) - 1);
 					first = 0;
 					entry_count++;
@@ -702,7 +698,7 @@ int server_web_dispatch(int client_fd, const char *method, const char *path, con
 			return 1;
 		}
 
-				if (strcmp(path, "/api/chat") == 0)
+		if (strcmp(path, "/api/chat") == 0)
 		{
 			extern int server_chat_get_json(char *out, size_t max_len);
 			char chat_buf[4096];
@@ -1154,43 +1150,99 @@ int server_web_dispatch(int client_fd, const char *method, const char *path, con
 			return 1;
 		}
 
+	
+	if (strcmp(method, "POST") == 0 && strcmp(path, "/api/rotation/entry") == 0)
+	{
+		char const *spec = config_string("debug.network_test");
+		char map_val[64] = { 0 };
+		char mode_val[64] = { 0 };
+		const char *map_ptr = buffer ? strstr(buffer, "\"map\":\"") : NULL;
+		const char *mode_ptr = buffer ? strstr(buffer, "\"mode\":\"") : NULL;
+
+		if (map_ptr) sscanf(map_ptr + 7, "%63[^\"]", map_val);
+		if (mode_ptr) sscanf(mode_ptr + 8, "%63[^\"]", mode_val);
+		if (!mode_val[0]) snprintf(mode_val, sizeof(mode_val), "slayer");
+
+		if (map_val[0])
+		{
+			char new_spec[2048];
+			const char *prefix = (!strncmp(spec, "host:", 5)) ? "host:" : "";
+			const char *content = prefix[0] ? spec + 5 : spec;
+			if (content && content[0])
+			{
+				snprintf(new_spec, sizeof(new_spec), "%s%s;%s:%s", prefix, content, map_val, mode_val);
+			}
+			else
+			{
+				snprintf(new_spec, sizeof(new_spec), "host:%s:%s", map_val, mode_val);
+			}
+			config_write("debug.network_test", new_spec);
+			send_json_object(client_fd, "{\"ok\":true,\"status\":\"added\"}\n");
+			return 1;
+		}
+		send_json_object(client_fd, "{\"ok\":false,\"error\":\"missing map\"}\n");
+		return 1;
+	}
+
 	if (strcmp(method, "DELETE") == 0 && strncmp(path, "/api/rotation/entry", 19) == 0)
 	{
 		char const *spec = config_string("debug.network_test");
 		char new_spec[2048] = { 0 };
-		const char *target = buffer ? strstr(buffer, "\"target\":\"") : NULL;
-		char target_val[64] = { 0 };
-		if (target)
-		{
-			sscanf(target + 10, "%63[^\"]", target_val);
-		}
-		if (target_val[0] && spec && spec[0])
+		int del_index = -1;
+		char target_map[64] = { 0 };
+
+		const char *idx_ptr = buffer ? strstr(buffer, "\"index\":") : NULL;
+		const char *target_ptr = buffer ? strstr(buffer, "\"target\":\"") : NULL;
+
+		if (idx_ptr) del_index = atoi(idx_ptr + 8);
+		if (target_ptr) sscanf(target_ptr + 10, "%63[^\"]", target_map);
+
+		if (spec && spec[0])
 		{
 			char copy[2048];
 			char *saveptr;
 			const char *prefix = (!strncmp(spec, "host:", 5)) ? "host:" : "";
 			const char *content = prefix[0] ? spec + 5 : spec;
 			strncpy(copy, content, sizeof(copy) - 1);
-			copy[sizeof(copy) - 1] = ' ';
+			copy[sizeof(copy) - 1] = '\0';
+
 			char *token = strtok_r(copy, ";", &saveptr);
+			int cur_idx = 0;
 			int first_tok = 1;
 			snprintf(new_spec, sizeof(new_spec), "%s", prefix);
 
 			while (token)
 			{
-				if (strstr(token, target_val) == NULL)
+				int match = 0;
+				if (del_index >= 0)
+				{
+					if (cur_idx == del_index) match = 1;
+				}
+				else if (target_map[0])
+				{
+					if (strstr(token, target_map) != NULL) match = 1;
+				}
+
+				if (!match)
 				{
 					if (!first_tok) strncat(new_spec, ";", sizeof(new_spec) - strlen(new_spec) - 1);
 					strncat(new_spec, token, sizeof(new_spec) - strlen(new_spec) - 1);
 					first_tok = 0;
 				}
+				cur_idx++;
 				token = strtok_r(NULL, ";", &saveptr);
 			}
+
+			if (first_tok) /* Si se borro todo, dejar al menos un mapa activo */
+			{
+				snprintf(new_spec, sizeof(new_spec), "host:beavercreek:slayer");
+			}
+
 			config_write("debug.network_test", new_spec);
 			send_json_object(client_fd, "{\"ok\":true,\"status\":\"removed\"}\n");
 			return 1;
 		}
-		send_json_object(client_fd, "{\"ok\":false,\"error\":\"invalid target\"}\n");
+		send_json_object(client_fd, "{\"ok\":false,\"error\":\"invalid spec\"}\n");
 		return 1;
 	}
 
