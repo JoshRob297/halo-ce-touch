@@ -541,6 +541,8 @@ static void network_test_apply_map_and_variant(
 
 	if (strchr(network_test.map_name, '\\'))
 		snprintf(path, sizeof(path), "%s", network_test.map_name);
+	else if (network_test.map_name[0] == 'a' || network_test.map_name[0] == 'b' || network_test.map_name[0] == 'c' || network_test.map_name[0] == 'd')
+		snprintf(path, sizeof(path), "levels\\%s\\%s", network_test.map_name, network_test.map_name);
 	else
 		snprintf(path, sizeof(path), "levels\\test\\%s\\%s", network_test.map_name, network_test.map_name);
 	network_test_variant(network_test.variant_index, variant_name, sizeof(variant_name));
@@ -651,6 +653,22 @@ static void network_test_map_voting_finalize(
 
 /* steps to the game after the current one: sequence runs in order, shuffle picks
 a random map/variant avoiding picking the exact same entry twice in a row */
+
+void network_test_force_game(const char *map, const char *variant)
+{
+	if (!map || !map[0]) return;
+	snprintf(network_test.map_name, sizeof(network_test.map_name), "%s", map);
+	snprintf(network_test.variant_name, sizeof(network_test.variant_name), "%s", (variant && variant[0]) ? variant : "slayer");
+	network_test.variant_index = 0;
+	network_test.spec_index = 0;
+	network_test_apply_map_and_variant();
+	{
+		struct network_game_server *server = global_network_game_server_get();
+		if (server)
+			network_game_server_port_end_game(server);
+	}
+}
+
 static void network_test_next_game(
 	void)
 {
