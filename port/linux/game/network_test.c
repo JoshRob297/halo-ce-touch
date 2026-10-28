@@ -563,8 +563,44 @@ static void network_test_apply_map_and_variant(
 		}
 		platform_log("network test: game %d, %s on %s", network_test.variant_index + 1,
 			variant_name, network_test.map_name);
-		if (network_test.score_to_win > 0)
-			variant.universal_variant.score_to_win = network_test.score_to_win;
+		{
+			const char *v_veh = config_string("match.vehicles");
+			const char *v_wep = config_string("match.weapons");
+			const char *v_ff = config_string("match.friendly_fire");
+			long v_score = config_integer("match.score_to_win");
+			boolean v_inf_gren = (boolean)config_boolean("match.infinite_grenades");
+
+			if (v_veh && v_veh[0])
+			{
+				if (!strcmp(v_veh, "none")) variant.universal_variant.vehicle_set = 1; /* _game_engine_vehicles_none */
+				else if (!strcmp(v_veh, "warthog")) variant.universal_variant.vehicle_set = 2; /* _game_engine_vehicles_warthog */
+				else if (!strcmp(v_veh, "ghost")) variant.universal_variant.vehicle_set = 3; /* _game_engine_vehicles_ghost */
+				else if (!strcmp(v_veh, "tank")) variant.universal_variant.vehicle_set = 4; /* _game_engine_vehicles_tank */
+			}
+			if (v_wep && v_wep[0])
+			{
+				if (!strcmp(v_wep, "pistols")) variant.universal_variant.weapon_set = 1;
+				else if (!strcmp(v_wep, "assault_rifles")) variant.universal_variant.weapon_set = 2;
+				else if (!strcmp(v_wep, "plasma_weapons")) variant.universal_variant.weapon_set = 3;
+				else if (!strcmp(v_wep, "sniping")) variant.universal_variant.weapon_set = 4;
+				else if (!strcmp(v_wep, "rockets")) variant.universal_variant.weapon_set = 6;
+				else if (!strcmp(v_wep, "shotguns")) variant.universal_variant.weapon_set = 7;
+				else if (!strcmp(v_wep, "classic")) variant.universal_variant.weapon_set = 12;
+				else if (!strcmp(v_wep, "heavy")) variant.universal_variant.weapon_set = 13;
+			}
+			if (v_inf_gren)
+			{
+				variant.universal_variant.flags |= (1 << 2); /* _game_variant_infinite_grenades_bit */
+			}
+			if (v_score > 0)
+			{
+				variant.universal_variant.score_to_win = (short)v_score;
+			}
+			else if (network_test.score_to_win > 0)
+			{
+				variant.universal_variant.score_to_win = network_test.score_to_win;
+			}
+		}
 		player_ui_set_game_variant(&variant);
 		if (opence)
 			player_ui_set_game_variant_options(&options);

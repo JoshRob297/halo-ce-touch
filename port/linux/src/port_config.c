@@ -643,7 +643,17 @@ static const struct config_setting config_settings[] =
 		"browser (debug.network_test's host; a game the menus make takes\n"
 		"Server Setup's own). Empty leaves the game's own, which here is\n"
 		"none." },
-	{ "network.server_password", _config_string, "\"\"", "HALO_NET_SERVER_PASSWORD", _environment_value, _platform_all,
+		{ "match.vehicles", _config_string, "\"default\"", "HALO_MATCH_VEHICLES", _environment_value, _platform_all,
+		"Vehicles for multiplayer games: default, none, warthog, ghost, tank, all" },
+	{ "match.weapons", _config_string, "\"normal\"", "HALO_MATCH_WEAPONS", _environment_value, _platform_all,
+		"Weapons for multiplayer games: normal, pistols, assault_rifles, plasma_weapons, sniping, rockets, shotguns, classic, heavy" },
+	{ "match.friendly_fire", _config_string, "\"on\"", "HALO_MATCH_FRIENDLY_FIRE", _environment_value, _platform_all,
+		"Multiplayer friendly fire: off, on, shields_only, explosives_only" },
+	{ "match.infinite_grenades", _config_boolean, "false", "HALO_MATCH_INFINITE_GRENADES", _environment_set_is_true, _platform_all,
+		"Infinite grenades in multiplayer matches" },
+	{ "match.score_to_win", _config_integer, "0", "HALO_MATCH_SCORE_TO_WIN", _environment_value, _platform_all,
+		"Score to win override for multiplayer matches (0 = variant default)" },
+{ "network.server_password", _config_string, "\"\"", "HALO_NET_SERVER_PASSWORD", _environment_value, _platform_all,
 		"The join password for the game. Empty means no password (open server).\n"
 		"When set, the game is listed in the server browser with a lock icon\n"
 		"and clients must enter the password to join." },
@@ -1654,6 +1664,9 @@ static const struct
 	{ "network.coop_friendly_fire", { "off", "on", "shields_only", "explosives_only", NULL }, NULL },
 	{ "network.shield_effects", { "stock", "glow", "light_show", "overshield", "glow_overshield",
 		"light_show_overshield", "players", NULL }, NULL },
+	{ "match.vehicles", { "default", "none", "warthog", "ghost", "tank", "all", NULL }, NULL },
+	{ "match.weapons", { "normal", "pistols", "assault_rifles", "plasma_weapons", "sniping", "rockets", "shotguns", "classic", "heavy", NULL }, NULL },
+	{ "match.friendly_fire", { "off", "on", "shields_only", "explosives_only", NULL }, NULL },
 	{ "network.coop_enemies_mode", { "none", "per_player", "multiplier", NULL }, NULL },
 	{ "server.chat_filter", { "off", "censor", "block", NULL }, NULL },
 	{ "server.chat_filter_slurs", { "off", "severe", "strong", "mild", NULL }, NULL },
