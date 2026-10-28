@@ -124,6 +124,7 @@ static void get_system_node_info(char *buf, size_t size)
 /* Settings and rotation access */
 extern int config_write(char const *name, char const *value);
 extern int config_text(char const *name, char *text, size_t size);
+extern void network_test_force_game(const char *map, const char *variant);
 extern const char *config_string(const char *name);
 
 #if !defined(_WIN32) && !defined(HALO_ANDROID) && !defined(HALO_ARM64_GUEST) && !defined(HALO_WEB)
@@ -751,6 +752,26 @@ int server_web_dispatch(int client_fd, const char *method, const char *path, con
 							send_json_object(client_fd, "{\"ok\":true,\"lines\":[\"Mensaje emitido en el chat de partida\"]}\n");
 							return 1;
 						}
+						if (strncmp(cmd, "sv_map ", 7) == 0)
+						{
+							char map_arg[64] = { 0 };
+							char mode_arg[64] = { 0 };
+							if (sscanf(cmd + 7, "%63s %63s", map_arg, mode_arg) >= 1)
+							{
+								if (!mode_arg[0]) snprintf(mode_arg, sizeof(mode_arg), "slayer");
+								network_test_force_game(map_arg, mode_arg);
+								send_json_object(client_fd, "{\"ok\":true,\"lines\":[\"Cambiando partida inmediatamente...\"]}\n");
+								return 1;
+							}
+						}
+						if (strcmp(cmd, "sv_end_game") == 0 || strcmp(cmd, "sv_map_restart") == 0)
+						{
+							struct network_game_server *server = global_network_game_server_get();
+							if (server)
+								network_game_server_port_end_game(server);
+							send_json_object(client_fd, "{\"ok\":true,\"lines\":[\"Ronda terminada/reiniciada\"]}\n");
+							return 1;
+						}
 						if (strcmp(cmd, "help") == 0 || strcmp(cmd, "?") == 0)
 						{
 							send_json_object(client_fd,
@@ -774,6 +795,31 @@ int server_web_dispatch(int client_fd, const char *method, const char *path, con
 				}
 			}
 			send_json_object(client_fd, "{\"ok\":true,\"lines\":[\"command executed\"]}\n");
+			return 1;
+		}
+
+		if (strcmp(path, "/api/game/load") == 0)
+		{
+			char map_val[64] = { 0 };
+			char mode_val[64] = { 0 };
+			const char *map_ptr = buffer ? strstr(buffer, "\"map\":\"") : NULL;
+			const char *mode_ptr = buffer ? strstr(buffer, "\"mode\":\"") : NULL;
+			if (map_ptr)
+			{
+				sscanf(map_ptr + 7, "%63[^\"]", map_val);
+			}
+			if (mode_ptr)
+			{
+				sscanf(mode_ptr + 8, "%63[^\"]", mode_val);
+			}
+			if (!mode_val[0]) snprintf(mode_val, sizeof(mode_val), "slayer");
+			if (map_val[0])
+			{
+				network_test_force_game(map_val, mode_val);
+				send_json_object(client_fd, "{\"ok\":true,\"status\":\"loaded\"}\n");
+				return 1;
+			}
+			send_json_object(client_fd, "{\"ok\":false,\"error\":\"missing map\"}\n");
 			return 1;
 		}
 
