@@ -541,34 +541,50 @@ int server_web_dispatch(int client_fd, const char *method, const char *path, con
 				{
 					char const *ip = strstr(b_line, "ip=");
 					char const *hwid = strstr(b_line, "hwid=");
+					char const *players = strstr(b_line, "players=");
 					char const *reason = strstr(b_line, "reason=");
+					char const *exp = strstr(b_line, "expires=");
+					char const *strk = strstr(b_line, "strikes=");
 					char ip_val[64] = "unknown";
 					char hwid_val[64] = "unknown";
+					char player_val[64] = "desconocido";
 					char reason_val[128] = "moderation";
+					long expires_val = 0;
+					int strikes_val = 0;
+
 					if (ip) {
 						sscanf(ip + 3, "%63s", ip_val);
 					}
 					if (hwid) {
 						sscanf(hwid + 5, "%63s", hwid_val);
 					}
+					if (players) {
+						sscanf(players + 8, "%63s", player_val);
+					}
 					if (reason) {
 						sscanf(reason + 7, "%127[^\r\n\t]", reason_val);
 					}
-					char item[300];
-					snprintf(item, sizeof(item), "%s{\"ip\":\"%s\",\"hwid\":\"%s\",\"reason\":\"%s\"}",
-						first_b ? "" : ",", ip_val, hwid_val, reason_val);
+					if (exp) {
+						expires_val = atol(exp + 8);
+					}
+					if (strk) {
+						strikes_val = atoi(strk + 8);
+					}
+					char item[350];
+					snprintf(item, sizeof(item), "%s{\"ip\":\"%s\",\"hwid\":\"%s\",\"player\":\"%s\",\"reason\":\"%s\",\"expires\":%ld,\"strikes\":%d}",
+						first_b ? "" : ",", ip_val, hwid_val, player_val, reason_val, expires_val, strikes_val);
 					strncat(bans_json, item, sizeof(bans_json) - strlen(bans_json) - 1);
 					first_b = 0;
 				}
 				fclose(f);
 			}
 			char resp[4096];
-			snprintf(resp, sizeof(resp), "{\"ok\":true,\"bans\":[%s]}\n", bans_json);
+			snprintf(resp, sizeof(resp), "{\"ok\":true,\"bans\":[%s],\"server_time\":%ld}\n", bans_json, (long)time(NULL));
 			send_json_object(client_fd, resp);
 			return 1;
 		}
 
-				/* /api/settings */
+		/* /api/settings */
 		if (strcmp(path, "/api/settings") == 0)
 		{
 			char dyn_settings[4096];
@@ -682,23 +698,7 @@ int server_web_dispatch(int client_fd, const char *method, const char *path, con
 			return 1;
 		}
 
-		/* /api/chat */
-		if (strcmp(path, "/api/unban") == 0)
-		{
-			char target[128];
-			if (extract_json_string(buffer, "target", target, sizeof(target)))
-			{
-				int n = remove_ban_entry(target);
-				char resp[128];
-				snprintf(resp, sizeof(resp), "{\"ok\":true,\"removed\":%d}\n", n);
-				send_json_object(client_fd, resp);
-				return 1;
-			}
-			send_json_object(client_fd, "{\"ok\":false,\"error\":\"missing target\"}\n");
-			return 1;
-		}
-
-		if (strcmp(path, "/api/chat") == 0)
+				if (strcmp(path, "/api/chat") == 0)
 		{
 			extern int server_chat_get_json(char *out, size_t max_len);
 			char chat_buf[4096];
@@ -766,6 +766,21 @@ int server_web_dispatch(int client_fd, const char *method, const char *path, con
 	/* 3. POST Commands */
 	if (strcmp(method, "POST") == 0)
 	{
+		if (strcmp(path, "/api/unban") == 0)
+		{
+			char target[128];
+			if (extract_json_string(buffer, "target", target, sizeof(target)))
+			{
+				int n = remove_ban_entry(target);
+				char resp[128];
+				snprintf(resp, sizeof(resp), "{\"ok\":true,\"removed\":%d}\n", n);
+				send_json_object(client_fd, resp);
+				return 1;
+			}
+			send_json_object(client_fd, "{\"ok\":false,\"error\":\"missing target\"}\n");
+			return 1;
+		}
+
 		if (strcmp(path, "/api/chat") == 0)
 		{
 			char msg[256];
