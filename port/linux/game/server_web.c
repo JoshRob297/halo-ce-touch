@@ -540,7 +540,12 @@ int server_web_dispatch(int client_fd, const char *method, const char *path, con
 				"{\"name\":\"network.map_share_upload\",\"value\":1024,\"type\":\"integer\",\"comment\":\"Max map sharing upload speed in KB/s\"},"
 				"{\"name\":\"network.coop_enemies_mode\",\"value\":\"per_player\",\"type\":\"string\",\"choices\":[\"none\",\"per_player\",\"multiplier\"],\"comment\":\"Scale campaign enemies per player\"},"
 				"{\"name\":\"network.coop_pickups\",\"value\":\"per_player\",\"type\":\"string\",\"choices\":[\"none\",\"per_player\",\"multiplier\"],\"comment\":\"Scale health and ammo packs per player\"},"
-				"{\"name\":\"network.coop_friendly_fire\",\"value\":\"on\",\"type\":\"string\",\"choices\":[\"off\",\"on\",\"shields_only\",\"explosives_only\"],\"comment\":\"Co-op friendly fire rule\"}"
+				"{\"name\":\"network.coop_friendly_fire\",\"value\":\"on\",\"type\":\"string\",\"choices\":[\"off\",\"on\",\"shields_only\",\"explosives_only\"],\"comment\":\"Co-op friendly fire rule\"},"
+				"{\"name\":\"match.vehicles\",\"value\":\"%s\",\"type\":\"string\",\"choices\":[\"default\",\"none\",\"warthog\",\"ghost\",\"tank\",\"all\"],\"comment\":\"Vehicle set rule\"},"
+				"{\"name\":\"match.weapons\",\"value\":\"%s\",\"type\":\"string\",\"choices\":[\"normal\",\"pistols\",\"assault_rifles\",\"plasma_weapons\",\"sniping\",\"rockets\",\"shotguns\",\"classic\",\"heavy\"],\"comment\":\"Starting weapons rule\"},"
+				"{\"name\":\"match.friendly_fire\",\"value\":\"%s\",\"type\":\"string\",\"choices\":[\"off\",\"on\",\"shields_only\",\"explosives_only\"],\"comment\":\"Multiplayer friendly fire\"},"
+				"{\"name\":\"match.infinite_grenades\",\"value\":%s,\"type\":\"boolean\",\"comment\":\"Infinite grenades\"},"
+				"{\"name\":\"match.score_to_win\",\"value\":%lu,\"type\":\"integer\",\"comment\":\"Score to win limit\"}"
 				"]}\n",
 				config_string("network.server_name")[0] ? config_string("network.server_name") : "JOCESLAB MX",
 				(unsigned long)config_integer("network.tunnel_port"),
@@ -556,7 +561,12 @@ int server_web_dispatch(int client_fd, const char *method, const char *path, con
 				(unsigned long)config_integer("debug.network_test_time"),
 				config_string("webhooks.discord"),
 				config_string("webhooks.telegram"),
-				config_string("paths.logs"));
+				config_string("paths.logs"),
+				config_string("match.vehicles")[0] ? config_string("match.vehicles") : "default",
+				config_string("match.weapons")[0] ? config_string("match.weapons") : "normal",
+				config_string("match.friendly_fire")[0] ? config_string("match.friendly_fire") : "on",
+				config_boolean("match.infinite_grenades") ? "true" : "false",
+				(unsigned long)config_integer("match.score_to_win"));
 			send_json_object(client_fd, dyn_settings);
 			return 1;
 		}
