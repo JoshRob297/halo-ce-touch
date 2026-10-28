@@ -410,22 +410,7 @@ int server_web_dispatch(int client_fd, const char *method, const char *path, con
 			return 1;
 		}
 
-		/* /api/rotation */
-		if (strcmp(path, "/api/rotation") == 0)
-		{
-			send_json_object(client_fd,
-				"{\"ok\":true,\"entries\":["
-				"{\"text\":\"beavercreek:gun_game\",\"map\":\"beavercreek\",\"gametype\":\"gun_game\"},"
-				"{\"text\":\"wizard:gun_game\",\"map\":\"wizard\",\"gametype\":\"gun_game\"},"
-				"{\"text\":\"chillout:infection\",\"map\":\"chillout\",\"gametype\":\"infection\"},"
-				"{\"text\":\"damnation:swat\",\"map\":\"damnation\",\"gametype\":\"swat\"},"
-				"{\"text\":\"prisoner:hardcore_slayer\",\"map\":\"prisoner\",\"gametype\":\"hardcore_slayer\"},"
-				"{\"text\":\"longest:swat\",\"map\":\"longest\",\"gametype\":\"swat\"},"
-				"{\"text\":\"putput:infection\",\"map\":\"putput\",\"gametype\":\"infection\"},"
-				"{\"text\":\"hangemhigh:gun_game\",\"map\":\"hangemhigh\",\"gametype\":\"gun_game\"}"
-				"],\"index\":0,\"next\":{\"text\":\"wizard:gun_game\"}}\n");
-			return 1;
-		}
+/* /api/rotation handled dynamically below */
 
 		/* /api/status */
 		if (strcmp(path, "/api/status") == 0)
