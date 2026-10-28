@@ -623,6 +623,19 @@ static void network_test_apply_map_and_variant(
 			{
 				variant.universal_variant.score_to_win = network_test.score_to_win;
 			}
+
+			{
+				long v_respawn = config_integer("match.respawn_time");
+				if (v_respawn > 0)
+				{
+					/* 30 ticks por segundo */
+					variant.universal_variant.respawn_time = v_respawn * 30;
+				}
+				else if (v_respawn == -1)
+				{
+					variant.universal_variant.respawn_time = 0; /* Instantaneo */
+				}
+			}
 		}
 		player_ui_set_game_variant(&variant);
 		if (opence)

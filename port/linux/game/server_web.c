@@ -545,7 +545,9 @@ int server_web_dispatch(int client_fd, const char *method, const char *path, con
 				"{\"name\":\"match.weapons\",\"value\":\"%s\",\"type\":\"string\",\"choices\":[\"normal\",\"pistols\",\"assault_rifles\",\"plasma_weapons\",\"sniping\",\"rockets\",\"shotguns\",\"classic\",\"heavy\"],\"comment\":\"Starting weapons rule\"},"
 				"{\"name\":\"match.friendly_fire\",\"value\":\"%s\",\"type\":\"string\",\"choices\":[\"off\",\"on\",\"shields_only\",\"explosives_only\"],\"comment\":\"Multiplayer friendly fire\"},"
 				"{\"name\":\"match.infinite_grenades\",\"value\":%s,\"type\":\"boolean\",\"comment\":\"Infinite grenades\"},"
-				"{\"name\":\"match.score_to_win\",\"value\":%lu,\"type\":\"integer\",\"comment\":\"Score to win limit\"}"
+				"{\"name\":\"match.score_to_win\",\"value\":%lu,\"type\":\"integer\",\"comment\":\"Score to win limit\"},"
+				"{\"name\":\"match.respawn_time\",\"value\":%ld,\"type\":\"integer\",\"comment\":\"Player respawn time in seconds (0 = default, -1 = instant)\"},"
+				"{\"name\":\"match.vehicle_respawn\",\"value\":%lu,\"type\":\"integer\",\"comment\":\"Vehicle respawn time in seconds\"}"
 				"]}\n",
 				config_string("network.server_name")[0] ? config_string("network.server_name") : "JOCESLAB MX",
 				(unsigned long)config_integer("network.tunnel_port"),
@@ -566,7 +568,9 @@ int server_web_dispatch(int client_fd, const char *method, const char *path, con
 				config_string("match.weapons")[0] ? config_string("match.weapons") : "normal",
 				config_string("match.friendly_fire")[0] ? config_string("match.friendly_fire") : "on",
 				config_boolean("match.infinite_grenades") ? "true" : "false",
-				(unsigned long)config_integer("match.score_to_win"));
+				(unsigned long)config_integer("match.score_to_win"),
+				(long)config_integer("match.respawn_time"),
+				(unsigned long)config_integer("match.vehicle_respawn"));
 			send_json_object(client_fd, dyn_settings);
 			return 1;
 		}
