@@ -981,12 +981,94 @@ int server_web_dispatch(int client_fd, const char *method, const char *path, con
 
 		if (strcmp(path, "/api/rotation") == 0)
 		{
+			const char *spec_ptr = buffer ? strstr(buffer, "\"spec\":\"") : NULL;
+			if (spec_ptr)
+			{
+				char new_spec[2048] = { 0 };
+				sscanf(spec_ptr + 8, "%2047[^\"]", new_spec);
+				if (new_spec[0])
+				{
+					char full_spec[2200];
+					snprintf(full_spec, sizeof(full_spec), "host:%s", new_spec);
+					config_write("debug.network_test", full_spec);
+					send_json_object(client_fd, "{\"ok\":true,\"status\":\"updated\"}\n");
+					return 1;
+				}
+			}
 			send_json_object(client_fd, "{\"ok\":true}\n");
 			return 1;
 		}
 	}
 
 	
+	
+		/* /api/master/key */
+		if (strcmp(path, "/api/master/key") == 0)
+		{
+			unsigned char pub[32];
+			char key_id[64] = { 0 };
+			char pub_hex[65] = { 0 };
+			extern int server_master_publisher(unsigned char *public_key, char *key_id);
+			extern void p2p_hex(const unsigned char *data, int size, char *hex);
+
+			if (server_master_publisher(pub, key_id))
+			{
+				p2p_hex(pub, 32, pub_hex);
+				char resp[512];
+				snprintf(resp, sizeof(resp),
+					"{\"ok\":true,\"public_key\":\"%s\",\"key_id\":\"%s\",\"apply_cmd\":\"/apply public_key:%s server_name:%s\"}\n",
+					pub_hex, key_id, pub_hex, config_string("network.server_name")[0] ? config_string("network.server_name") : "JOCESLAB MX");
+				send_json_object(client_fd, resp);
+				return 1;
+			}
+			send_json_object(client_fd, "{\"ok\":false,\"error\":\"no publisher key\"}\n");
+			return 1;
+		}
+
+		/* /api/master/sign */
+		if (strcmp(path, "/api/master/sign") == 0)
+		{
+			char nonce[256] = { 0 };
+			const char *nonce_ptr = buffer ? strstr(buffer, "\"nonce\":\"") : NULL;
+			if (nonce_ptr)
+			{
+				sscanf(nonce_ptr + 9, "%255[^\"]", nonce);
+			}
+			if (nonce[0])
+			{
+				/* Firmar el nonce con la publisher key */
+				unsigned char sig[64];
+				char sig_hex[129] = { 0 };
+				FILE *pipe;
+				char cmd[512];
+				snprintf(cmd, sizeof(cmd), "./halo --sign '%s' 2>/dev/null", nonce);
+				pipe = popen(cmd, "r");
+				if (pipe)
+				{
+					if (fgets(sig_hex, sizeof(sig_hex), pipe))
+					{
+						size_t slen = strlen(sig_hex);
+						while (slen > 0 && (sig_hex[slen - 1] == '\n' || sig_hex[slen - 1] == '\r' || sig_hex[slen - 1] == ' '))
+						{
+							sig_hex[--slen] = '\0';
+						}
+					}
+					pclose(pipe);
+				}
+				if (sig_hex[0])
+				{
+					char resp[512];
+					snprintf(resp, sizeof(resp),
+						"{\"ok\":true,\"nonce\":\"%s\",\"signature\":\"%s\",\"verify_cmd\":\"/verify nonce:%s signature:%s\"}\n",
+						nonce, sig_hex, nonce, sig_hex);
+					send_json_object(client_fd, resp);
+					return 1;
+				}
+			}
+			send_json_object(client_fd, "{\"ok\":false,\"error\":\"missing or invalid nonce\"}\n");
+			return 1;
+		}
+
 	if (strcmp(method, "DELETE") == 0 && strncmp(path, "/api/rotation/entry", 19) == 0)
 	{
 		char const *spec = config_string("debug.network_test");
