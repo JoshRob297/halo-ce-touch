@@ -643,7 +643,11 @@ static const struct config_setting config_settings[] =
 		"browser (debug.network_test's host; a game the menus make takes\n"
 		"Server Setup's own). Empty leaves the game's own, which here is\n"
 		"none." },
-		{ "match.vehicles", _config_string, "\"default\"", "HALO_MATCH_VEHICLES", _environment_value, _platform_all,
+			{ "match.respawn_time", _config_integer, "0", "HALO_MATCH_RESPAWN_TIME", _environment_value, _platform_all,
+		"Player respawn time in seconds (0 = variant default, 3 = 3s, 5 = 5s, 10 = 10s)" },
+	{ "match.vehicle_respawn", _config_integer, "30", "HALO_MATCH_VEHICLE_RESPAWN", _environment_value, _platform_all,
+		"Vehicle respawn time in seconds (0 = never, 30 = default)" },
+{ "match.vehicles", _config_string, "\"default\"", "HALO_MATCH_VEHICLES", _environment_value, _platform_all,
 		"Vehicles for multiplayer games: default, none, warthog, ghost, tank, all" },
 	{ "match.weapons", _config_string, "\"normal\"", "HALO_MATCH_WEAPONS", _environment_value, _platform_all,
 		"Weapons for multiplayer games: normal, pistols, assault_rifles, plasma_weapons, sniping, rockets, shotguns, classic, heavy" },
