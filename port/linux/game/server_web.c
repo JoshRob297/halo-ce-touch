@@ -648,19 +648,21 @@ int server_web_dispatch(int client_fd, const char *method, const char *path, con
 		if (strcmp(path, "/api/rotation") == 0)
 		{
 			const char *test_spec = config_string("debug.network_test");
-			char response[4096];
-			char entries_json[3500];
+			char response[8192];
+			char entries_json[7000];
 			char spec_copy[2048];
 			char *saveptr1;
 			char *token;
 			int first = 1;
+			int entry_count = 0;
+			const int MAX_ROTATION_ITEMS = 32; /* Limite de seguridad: maximo 32 partidas en la playlist */
 			const char *p = strstr(test_spec, "host:");
 			entries_json[0] = '\0';
 			p = p ? p + 5 : test_spec;
 			strncpy(spec_copy, p, sizeof(spec_copy) - 1);
 			spec_copy[sizeof(spec_copy) - 1] = '\0';
 			token = strtok_r(spec_copy, ";", &saveptr1);
-			while (token)
+			while (token && entry_count < MAX_ROTATION_ITEMS)
 			{
 				char map[64];
 				char variants[256];
@@ -675,12 +677,13 @@ int server_web_dispatch(int client_fd, const char *method, const char *path, con
 					variants[sizeof(variants) - 1] = '\0';
 					char *saveptr2;
 					char *var = strtok_r(variants, ",", &saveptr2);
-					while (var)
+					while (var && entry_count < MAX_ROTATION_ITEMS)
 					{
 						char item[256];
 						snprintf(item, sizeof(item), "%s{\"text\":\"%s:%s\",\"map\":\"%s\",\"gametype\":\"%s\"}", first ? "" : ",", map, var, map, var);
 						strncat(entries_json, item, sizeof(entries_json) - strlen(entries_json) - 1);
 						first = 0;
+						entry_count++;
 						var = strtok_r(NULL, ",", &saveptr2);
 					}
 				}
@@ -690,6 +693,7 @@ int server_web_dispatch(int client_fd, const char *method, const char *path, con
 					snprintf(item, sizeof(item), "%s{\"text\":\"%s:slayer\",\"map\":\"%s\",\"gametype\":\"%s\"}", first ? "" : ",", token, token, strcmp(token, "a10") == 0 ? "coop" : "slayer");
 					strncat(entries_json, item, sizeof(entries_json) - strlen(entries_json) - 1);
 					first = 0;
+					entry_count++;
 				}
 				token = strtok_r(NULL, ";", &saveptr1);
 			}
@@ -986,13 +990,41 @@ int server_web_dispatch(int client_fd, const char *method, const char *path, con
 			{
 				char new_spec[2048] = { 0 };
 				sscanf(spec_ptr + 8, "%2047[^\"]", new_spec);
+				/* Guardas:
+				   1. No permitir spec vacio
+				   2. Validar que contenga solo caracteres seguros (a-z, 0-9, _, :, ;, ,)
+				   3. Limitar a maximo 32 bloques
+				*/
 				if (new_spec[0])
 				{
-					char full_spec[2200];
-					snprintf(full_spec, sizeof(full_spec), "host:%s", new_spec);
-					config_write("debug.network_test", full_spec);
-					send_json_object(client_fd, "{\"ok\":true,\"status\":\"updated\"}\n");
-					return 1;
+					int valid = 1;
+					int semicolons = 0;
+					size_t i;
+					for (i = 0; i < strlen(new_spec); i++)
+					{
+						char c = new_spec[i];
+						if (c == ';') semicolons++;
+						if (!((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' || c == ':' || c == ';' || c == ',' || c == '\\'))
+						{
+							valid = 0;
+							break;
+						}
+					}
+					if (semicolons > 32) valid = 0;
+
+					if (valid)
+					{
+						char full_spec[2200];
+						snprintf(full_spec, sizeof(full_spec), "host:%s", new_spec);
+						config_write("debug.network_test", full_spec);
+						send_json_object(client_fd, "{\"ok\":true,\"status\":\"updated\"}\n");
+						return 1;
+					}
+					else
+					{
+						send_json_object(client_fd, "{\"ok\":false,\"error\":\"invalid rotation syntax or limit exceeded\"}\n");
+						return 1;
+					}
 				}
 			}
 			send_json_object(client_fd, "{\"ok\":true}\n");
