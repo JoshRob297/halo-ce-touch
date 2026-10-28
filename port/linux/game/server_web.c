@@ -1002,6 +1002,59 @@ int server_web_dispatch(int client_fd, const char *method, const char *path, con
 
 	
 	
+		
+		/* /api/master/keygen (Regeneracion protegida de clave de Publisher) */
+		if (strcmp(path, "/api/master/keygen") == 0)
+		{
+			unsigned char existing_pub[32];
+			char existing_key_id[64] = { 0 };
+			extern int server_master_publisher(unsigned char *public_key, char *key_id);
+			int has_key = server_master_publisher(existing_pub, existing_key_id);
+
+			const char *confirm_ptr = buffer ? strstr(buffer, "\"confirm_force\":true") : NULL;
+
+			/* Compuerta de Seguridad: Si ya existe una clave y no envia confirm_force: true, BLOQUEAR */
+			if (has_key && !confirm_ptr)
+			{
+				char resp[512];
+				snprintf(resp, sizeof(resp),
+					"{\"ok\":false,\"error\":\"key_exists\",\"key_id\":\"%s\",\"message\":\"El servidor ya cuenta con una clave Ed25519 activa autorizada ante OpenCE. Regenerarla revocará el estatus DEDICATED hasta volver a solicitar autorización en Discord. Se requiere confirmación explícita.\"}\n",
+					existing_key_id);
+				send_json_object(client_fd, resp);
+				return 1;
+			}
+
+			/* Si se confirma o no existe, respaldar y generar */
+			if (has_key)
+			{
+				rename("publisher.key", "publisher.key.bak");
+				rename("/opt/halo-server/publisher.key", "/opt/halo-server/publisher.key.bak");
+			}
+
+			FILE *pipe = popen("./halo --keygen 2>/dev/null", "r");
+			if (pipe)
+			{
+				pclose(pipe);
+			}
+
+			unsigned char new_pub[32];
+			char new_key_id[64] = { 0 };
+			char new_pub_hex[65] = { 0 };
+			extern void p2p_hex(const unsigned char *data, int size, char *hex);
+			if (server_master_publisher(new_pub, new_key_id))
+			{
+				p2p_hex(new_pub, 32, new_pub_hex);
+				char resp[512];
+				snprintf(resp, sizeof(resp),
+					"{\"ok\":true,\"status\":\"generated\",\"public_key\":\"%s\",\"key_id\":\"%s\",\"apply_cmd\":\"/apply public_key:%s server_name:%s\"}\n",
+					new_pub_hex, new_key_id, new_pub_hex, config_string("network.server_name")[0] ? config_string("network.server_name") : "JOCESLAB MX");
+				send_json_object(client_fd, resp);
+				return 1;
+			}
+			send_json_object(client_fd, "{\"ok\":false,\"error\":\"keygen_failed\"}\n");
+			return 1;
+		}
+
 		/* /api/master/key */
 		if (strcmp(path, "/api/master/key") == 0)
 		{
