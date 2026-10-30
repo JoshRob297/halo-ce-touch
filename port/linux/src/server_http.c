@@ -692,6 +692,12 @@ static void respond(struct connection *connection, int status, const char *conte
 {
 	char head[2048];
 	int length;
+	/* port: this fork's dashboard is one self-contained page, its script and
+	styles inline (port/linux/game/server_ui_embedded.c), so its own responses
+	allow inline; every other response keeps the strict policy */
+	const char *policy = !strncmp(content_type, "text/html", 9)
+		? "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'"
+		: "default-src 'self'; frame-ancestors 'none'";
 
 	length = snprintf(head, sizeof(head),
 		"HTTP/1.1 %d %s\r\n"
@@ -702,11 +708,12 @@ static void respond(struct connection *connection, int status, const char *conte
 		/* (same-origin, not no-referrer: under no-referrer a browser sends
 		the page's own posts with Origin: null) */
 		"Referrer-Policy: same-origin\r\n"
-		"Content-Security-Policy: default-src 'self'; frame-ancestors 'none'\r\n"
+		"Content-Security-Policy: %s\r\n"
 		"X-Frame-Options: DENY\r\n"
 		"Connection: %s\r\n"
 		"%s\r\n",
 		status, status_text(status), content_type, size, no_store ? "no-store" : "no-cache",
+		policy,
 		connection->close_after_write || !connection->request.keep_alive ? "close" : "keep-alive",
 		extra_headers ? extra_headers : "");
 	if (!connection->request.keep_alive)

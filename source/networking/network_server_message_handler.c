@@ -2024,7 +2024,6 @@ static boolean network_game_server_handle_message_client_join_game_request(
 					join_game_token,
 					sizeof(join_game_token)))
 				{
-<<<<<<< HEAD
 					/* (the Xbox game refused a machine not named in the
 					development kit's d:\hosts.txt: a stray file of that name
 					on a PC refused machines. port: a dedicated server's word
@@ -2037,14 +2036,6 @@ static boolean network_game_server_handle_message_client_join_game_request(
 						network_event("refusing a machine @%s: its name has words the server's filter keeps out",
 							transport_address_to_string(&source_address));
 						network_game_server_refuse_with(_rejection_code_name_refused);
-=======
-					extern boolean network_chat_name_blocked(wchar_t const *name, short length);
-					boolean name_refused = network_chat_name_blocked(machine_name, MAXIMUM_MACHINE_NAME_LENGTH);
-					if (name_refused)
-					{
-						network_event("refusing a machine @%s: its name has words the server filter keeps out",
-							transport_address_to_string(&source_address));
->>>>>>> b586fab34 (feat: add dedicated browser flag, server.region and chat/name moderation filters)
 					}
 					if (!name_refused && network_game_server_accept_client_machine_into_game(server, server_client_machine))
 					{

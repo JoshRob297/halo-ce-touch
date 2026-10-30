@@ -1866,16 +1866,11 @@ boolean network_game_client_remove_player(
 				}
 			}
 
-<<<<<<< HEAD
 			/* port: a dedicated server's own machine never has a player
 			(port/linux/game/server_director.c): it leaves only when a player
 			of its own goes, which none is */
 			if (network_player_index == MAXIMUM_NUMBER_OF_PLAYERS &&
 				(!halo_server_mode() || player->machine_index == client->machine_index))
-=======
-			if (network_player_index == MAXIMUM_NUMBER_OF_PLAYERS &&
-				!network_test_host_keeps_its_game())
->>>>>>> eb95d0b48 (Keep a dedicated host's game when its players leave, and its listing with it)
 			{
 				/* port: a dedicated host has no player of its own
 				(debug.network_test_player), so every player leaving reads as its
@@ -3288,7 +3283,6 @@ boolean network_game_client_advertised_game_compatible(
 		network_event("joining a host of network version %u (this machine's is %u)", theirs, ours);
 		return TRUE;
 	}
-<<<<<<< HEAD
 	if (tell)
 		network_game_client_tell_version(theirs, distributed);
 	return FALSE;
@@ -3303,16 +3297,13 @@ void network_game_client_tell_version(
 	unsigned int ours = HALO_PORT_NETWORK_VERSION;
 	char message[400];
 
-	if (theirs == ours)
-=======
-	if (theirs >= oldest && theirs <= newest)
->>>>>>> b5070e13f (Netcode: a client joins the versions whose messages it already drops)
+	if (theirs >= HALO_PORT_NETWORK_VERSION_MINIMUM && theirs <= HALO_PORT_NETWORK_VERSION_MAXIMUM)
 	{
 		csprintf(message,
 			"The host is using the lockstep network code, which this version no longer has.\n\n"
 			"Ask the host to update the game.");
 	}
-	else if (theirs > newest)
+	else if (theirs > HALO_PORT_NETWORK_VERSION_MAXIMUM)
 	{
 		csprintf(message,
 			"The host is using a newer version of the network code than you.\n\n"

@@ -764,61 +764,11 @@ static const struct config_setting config_settings[] =
 		"invite find each other (its messages are encrypted), beside this file\n"
 		"unless a full path: one host:port on each line, up to 4. Updates\n"
 		"replace brokers.txt: keep a list of your own under another name." },
-<<<<<<< HEAD
-	{ "network.public_address", _config_string, "\"\"", "HALO_NET_PUBLIC_ADDRESS", _environment_value,
-		_platform_desktop,
-		"Hosting: the internet address joiners reach this machine at, as\n"
-		"host[:port] (the port: the one forwarded to network.tunnel_port), for a\n"
-		"server behind a NAT with one forwarded port; offered first, its name\n"
-		"looked up again every 5 minutes. Empty: what STUN and UPnP find." },
-	{ "network.listings", _config_string, "\"both\"", "HALO_NET_LISTINGS", _environment_value, _platform_all,
-		"What the server browser lists: \"both\" (dedicated servers from the\n"
-		"master servers first, then the games players host, from the brokers),\n"
-		"\"masters\" (the master servers' alone) or \"brokers\" (the brokers'\n"
-		"alone)." },
-	{ "network.masters_file", _config_string, "\"masters.txt\"", "HALO_NET_MASTERS_FILE", _environment_value,
-		_platform_all,
-		"The file of the master servers the server browser asks for dedicated\n"
-		"servers, beside this file unless a full path: an https:// URL and its\n"
-		"key (ed25519:<hex>) on each line, up to 4. None named (no file, or\n"
-		"comments alone): the official master, built in." },
-	{ "network.link_share", _config_string, "\"when_needed\"", "HALO_NET_LINK_SHARE", _environment_value,
-		_platform_all,
-		"When the game shows a server the Discord account linked to it\n"
-		"(Settings > Network Setup > Discord Account): \"when_needed\" (a server\n"
-		"that asks, to let you in from a VPN), \"always\" or \"never\"." },
-	{ "network.browser_source", _config_string, "\"all\"", "HALO_NET_BROWSER_SOURCE", _environment_value,
-		_platform_all,
-		"The server browser's games: \"all\" (ALL GAMES: the dedicated\n"
-		"servers first, then the games players host), \"dedicated\" (the\n"
-		"master servers' dedicated servers) or \"players\" (P2P GAMES: games\n"
-		"players host). Its top-left tab changes it." },
-	{ "network.browser_show_empty", _config_boolean, "true", "HALO_NET_BROWSER_SHOW_EMPTY", _environment_value,
-		_platform_all,
-		"The server browser lists games with no player (its Filters screen)." },
-	{ "network.browser_show_full", _config_boolean, "true", "HALO_NET_BROWSER_SHOW_FULL", _environment_value,
-		_platform_all,
-		"The server browser lists full games (its Filters screen)." },
-	{ "network.browser_maps", _config_string, "\"yes\"", "HALO_NET_BROWSER_MAPS", _environment_value, _platform_all,
-		"The server browser lists games on maps this machine lacks: \"yes\", \"no\",\n"
-		"or \"downloadable\" (those of a Custom Edition map its host shares)." },
-	{ "network.browser_gametype", _config_string, "\"any\"", "HALO_NET_BROWSER_GAMETYPE", _environment_value,
-		_platform_all,
-		"The server browser lists games of one kind only: \"any\", \"ctf\",\n"
-		"\"slayer\", \"oddball\", \"king\" or \"race\" (its Filters screen)." },
-	{ "network.browser_sort", _config_string, "\"servers\"", "HALO_NET_BROWSER_SORT", _environment_value,
-		_platform_all,
-		"The server browser's order: \"servers\" (dedicated servers first, then by\n"
-		"players), \"players\", \"name\", \"map\", \"type\" or \"locked\" (a password's\n"
-		"first); \"-\" before one reverses it (\"-players\"). A column title sorts by\n"
-		"it, and again the other way." },
-=======
 	{ "network.server_name", _config_string, "\"\"", "HALO_NET_SERVER_NAME", _environment_value, _platform_all,
 		"The name a dedicated host's listing shows in everyone's server\n"
 		"browser (debug.network_test's host; a game the menus make takes\n"
 		"Server Setup's own). Empty leaves the game's own, which here is\n"
 		"none." },
->>>>>>> 4ae85f6b2 (Run a host's map list on its own)
 	{ "network.stun_servers", _config_string, "\"stun.l.google.com:19302,stun.cloudflare.com:3478\"",
 		"HALO_NET_STUN", _environment_value, _platform_all,
 		"Public STUN servers that tell this machine its internet address;\n"

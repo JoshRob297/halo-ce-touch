@@ -89,11 +89,7 @@ enum
 	_listing_closed = 8,
 	/* its token sealed with a password's key */
 	_listing_password = 16,
-<<<<<<< HEAD
 	/* a dedicated server's (halo --server: server_mode.c) */
-=======
-	/* dedicated server flag */
->>>>>>> b586fab34 (feat: add dedicated browser flag, server.region and chat/name moderation filters)
 	_listing_dedicated = 32,
 	STAMP_SIZE = 8,
 	/* the signed part's end: everything but the signature */
@@ -317,11 +313,7 @@ static int listing_make_token(unsigned char *bytes, int flags, const unsigned ch
 
 	if (lobby.has_password && !(flags & _listing_closed))
 		flags |= _listing_password;
-<<<<<<< HEAD
 	if (halo_server_mode())
-=======
-	if (!(flags & _listing_closed))
->>>>>>> b586fab34 (feat: add dedicated browser flag, server.region and chat/name moderation filters)
 		flags |= _listing_dedicated;
 	bytes[size++] = 'H';
 	bytes[size++] = 'L';
@@ -746,16 +738,12 @@ static void listing_take(const struct queued *queued, const struct listing *list
 	shown->open = (listing->flags & _listing_open) != 0;
 	shown->in_progress = (listing->flags & _listing_in_progress) != 0;
 	shown->has_teams = (listing->flags & _listing_has_teams) != 0;
-<<<<<<< HEAD
 	/* (a dedicated server's on a master's word alone: the listing's own
 	flag is its host's, which any host can set, so a game the brokers alone
 	list is the players' however it calls itself) */
 	shown->dedicated = game->master && game->master_dedicated;
 	shown->network_version = (unsigned short)listing->version;
-=======
-	shown->dedicated = (listing->flags & _listing_dedicated) != 0;
 	shown->region[0] = '\0';
->>>>>>> b586fab34 (feat: add dedicated browser flag, server.region and chat/name moderation filters)
 }
 
 /* the hosts' pings: those not known lately probed, while there is room (a
@@ -848,14 +836,6 @@ static void update_browsing(void)
 		int good;
 
 		memmove(lobby.queue, lobby.queue + 1, sizeof(*lobby.queue) * (size_t)(--lobby.queue_count));
-<<<<<<< HEAD
-		/* (listing_wanted let it in; its key and its time are checked
-		again here, where its signature is: the time it was queued at may
-		have run out) */
-		if (!listing_read(queued.payload, queued.size, &listing) || listing.version != HALO_PORT_NETWORK_VERSION ||
-			!signing_key_hash(listing.key, key_hash) || memcmp(key_hash, queued.key_hash, P2P_KEY_HASH_SIZE) ||
-			!listing_current(&listing, queued.retained))
-=======
 		/* (a newer version's game is counted, not shown: its host's key
 		hash only, unverified, so it is no more than a count) */
 		if (lobby.browsing && listing_read(queued.payload, queued.size, &listing) &&
@@ -868,7 +848,6 @@ static void update_browsing(void)
 			listing.version < HALO_PORT_NETWORK_VERSION_MINIMUM ||
 			listing.version > HALO_PORT_NETWORK_VERSION_MAXIMUM ||
 			!signing_key_hash(listing.key, key_hash) || memcmp(key_hash, queued.key_hash, P2P_KEY_HASH_SIZE))
->>>>>>> b5070e13f (Netcode: a client joins the versions whose messages it already drops)
 		{
 			continue;
 		}

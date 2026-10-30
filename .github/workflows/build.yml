@@ -393,7 +393,6 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
     steps:
-<<<<<<< HEAD
       # (tools/ci_build.py and tools/release_sign.sh, the public key, and
       # halo_port_limits.h, whose network version the release's notes give)
       - uses: actions/checkout@v4
@@ -404,13 +403,6 @@ jobs:
             deploy/release-key.pub
             port/linux/include/halo_port_limits.h
           sparse-checkout-cone-mode: false
-=======
-      # (the network version the release is named for: this fork's release is
-      # the dedicated server's)
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
->>>>>>> c2ba05c38 (CI: the release says the server's network version)
 
       - uses: actions/download-artifact@v4
         with:
@@ -451,7 +443,6 @@ jobs:
         run: |
           tag="build-$GITHUB_RUN_NUMBER"
           subject="$(printf '%s' "${MESSAGE:-manual run}" | head -n 1)"
-<<<<<<< HEAD
           # (the network version, which a dedicated server's server.auto_update
           # reads: a new one is started once the game being played is over)
           network_version="$(sed -n 's/^#define HALO_PORT_NETWORK_VERSION \([0-9]*\).*/\1/p' port/linux/include/halo_port_limits.h)"
@@ -459,13 +450,6 @@ jobs:
             "$subject" "$COMMIT_URL" "$RUN_URL" "$network_version" > notes.md
           gh release create "$tag" release/* --target "$GITHUB_SHA" --latest \
             --title "Build $GITHUB_RUN_NUMBER (${GITHUB_SHA:0:7})" --notes-file notes.md
-=======
-          version="$(sed -n 's/^#define HALO_PORT_NETWORK_VERSION \([0-9][0-9]*\).*/\1/p' port/linux/include/halo_port_limits.h)"
-          printf '%s\n\nCommit: %s\nBuild: %s\nNetwork version: %s (the dedicated server this fork carries: the release builds are that server, on Linux and Windows; docs/dedicated_server.md)\n\nThe release builds are for playing; the debug builds stop at the first failed assertion and log it.\n' \
-            "$subject" "$COMMIT_URL" "$RUN_URL" "$version" > notes.md
-          gh release create "$tag" release/*.zip --target "$GITHUB_SHA" --latest \
-            --title "Server, network version $version (build $GITHUB_RUN_NUMBER, ${GITHUB_SHA:0:7})" --notes-file notes.md
->>>>>>> c2ba05c38 (CI: the release says the server's network version)
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
 
       # The Windows builds' executables and PDBs to Sentry, which turns the
