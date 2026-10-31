@@ -4590,29 +4590,14 @@ boolean network_distributed_banned(
 			(ip[3 + length] == '\t' || ip[3 + length] == '\n' || ip[3 + length] == '\r' ||
 				ip[3 + length] == ' ' || ip[3 + length] == 0))
 		{
-			match = TRUE;
+			banned = TRUE;
 		}
 		/* (or the whole hardware id) */
-		if (hardware_id_length && hwid && !strncmp(hwid + 5, kept_hardware_id, hardware_id_length) &&
+		if (!banned && hardware_id_length && hwid && !strncmp(hwid + 5, kept_hardware_id, hardware_id_length) &&
 			(hwid[5 + hardware_id_length] == '\t' || hwid[5 + hardware_id_length] == '\n' ||
 				hwid[5 + hardware_id_length] == '\r' || hwid[5 + hardware_id_length] == ' ' ||
 				hwid[5 + hardware_id_length] == 0))
 		{
-			match = TRUE;
-		}
-
-		if (match)
-		{
-			/* check if this ban has an expiration timestamp */
-			if (exp_str)
-			{
-				time_t expires = (time_t)atol(exp_str + 8);
-				if (expires > 0 && now >= expires)
-				{
-					/* temporary ban expired; ignore this line */
-					continue;
-				}
-			}
 			banned = TRUE;
 		}
 		/* (or the whole verified Discord id, which a line has without

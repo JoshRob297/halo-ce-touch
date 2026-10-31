@@ -89,58 +89,6 @@ mutes.
 #include "network_votekick.h"
 #include "network_voice.h"
 
-/* Buffer circular para telemetria del dashboard web */
-#define SERVER_CHAT_HISTORY_MAX 32
-struct server_chat_entry {
-	char sender[32];
-	char text[128];
-	unsigned long timestamp;
-	short channel;
-};
-static struct server_chat_entry s_chat_history[SERVER_CHAT_HISTORY_MAX];
-static int s_chat_history_count = 0;
-static int s_chat_history_head = 0;
-
-void server_chat_record_message(const char *sender, const char *msg, short channel)
-{
-	int idx = (s_chat_history_head + s_chat_history_count) % SERVER_CHAT_HISTORY_MAX;
-	if (s_chat_history_count < SERVER_CHAT_HISTORY_MAX)
-		s_chat_history_count++;
-	else
-		s_chat_history_head = (s_chat_history_head + 1) % SERVER_CHAT_HISTORY_MAX;
-
-	snprintf(s_chat_history[idx].sender, sizeof(s_chat_history[idx].sender), "%s", sender ? sender : "Server");
-	snprintf(s_chat_history[idx].text, sizeof(s_chat_history[idx].text), "%s", msg ? msg : "");
-	s_chat_history[idx].timestamp = (unsigned long)time(NULL);
-	s_chat_history[idx].channel = channel;
-}
-
-int server_chat_get_json(char *out, size_t max_len)
-{
-	int i, first = 1;
-	size_t written = 0;
-	written += snprintf(out + written, max_len - written, "{\"ok\":true,\"chat\":[");
-	for (i = 0; i < s_chat_history_count; i++)
-	{
-		int idx = (s_chat_history_head + i) % SERVER_CHAT_HISTORY_MAX;
-		char esc_txt[256];
-		size_t j = 0, k;
-		for (k = 0; s_chat_history[idx].text[k] && j < sizeof(esc_txt) - 2; k++) {
-			if (s_chat_history[idx].text[k] == '"' || s_chat_history[idx].text[k] == '\\')
-				esc_txt[j++] = '\\';
-			esc_txt[j++] = s_chat_history[idx].text[k];
-		}
-		esc_txt[j] = '\0';
-
-		written += snprintf(out + written, max_len - written,
-			"%s{\"sender\":\"%s\",\"text\":\"%s\",\"time\":%lu,\"channel\":%d}",
-			first ? "" : ",", s_chat_history[idx].sender, esc_txt,
-			s_chat_history[idx].timestamp, (int)s_chat_history[idx].channel);
-		first = 0;
-	}
-	written += snprintf(out + written, max_len - written, "]}\n");
-	return (int)written;
-}
 
 #include "network_chat.h"
 #include "text_filter.h"
