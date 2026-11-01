@@ -1291,6 +1291,53 @@ static const struct config_setting config_settings[] =
 		"Megabytes a recording keeps in memory, 4 to 1024: two halves, each\n"
 		"written out as a part when it fills." },
 #endif
+	{ "network.public_chat", _config_boolean, "false", "HALO_NET_PUBLIC_CHAT", _environment_set_is_true, _platform_all,
+		"Allow text chat in games listed in the public server browser. The default\n"
+		"is false (chat off in public listings, as a client-hosted game). A\n"
+		"dedicated server with operator moderation (kick, ban, /mute) may set\n"
+		"this to true. network.text_chat still controls whether chat is on at\n"
+		"all; this only lifts the public-listing restriction.\n" },
+	{ "match.respawn_time", _config_integer, "0", "HALO_MATCH_RESPAWN_TIME", _environment_value, _platform_all,
+		"Player respawn time in seconds (0 = variant default, 3 = 3s, 5 = 5s, 10 = 10s)" },
+	{ "match.vehicle_respawn", _config_integer, "30", "HALO_MATCH_VEHICLE_RESPAWN", _environment_value, _platform_all,
+		"Vehicle respawn time in seconds (0 = never, 30 = default)" },
+	{ "match.vehicles", _config_string, "\"default\"", "HALO_MATCH_VEHICLES", _environment_value, _platform_all,
+		"Vehicles for multiplayer games: default, none, warthog, ghost, tank, all" },
+	{ "match.weapons", _config_string, "\"normal\"", "HALO_MATCH_WEAPONS", _environment_value, _platform_all,
+		"Weapons for multiplayer games: normal, pistols, assault_rifles, plasma_weapons, sniping, rockets, shotguns, classic, heavy" },
+	{ "match.friendly_fire", _config_string, "\"on\"", "HALO_MATCH_FRIENDLY_FIRE", _environment_value, _platform_all,
+		"Multiplayer friendly fire: off, on, shields_only, explosives_only" },
+	{ "match.infinite_grenades", _config_boolean, "false", "HALO_MATCH_INFINITE_GRENADES", _environment_set_is_true, _platform_all,
+		"Infinite grenades in multiplayer matches" },
+	{ "match.score_to_win", _config_integer, "0", "HALO_MATCH_SCORE_TO_WIN", _environment_value, _platform_all,
+		"Score to win override for multiplayer matches (0 = variant default)" },
+	{ "network.server_password", _config_string, "\"\"", "HALO_NET_SERVER_PASSWORD", _environment_value, _platform_all,
+		"The join password for the game. Empty means no password (open server).\n"
+		"When set, the game is listed in the server browser with a lock icon\n"
+		"and clients must enter the password to join." },
+	{ "network.map_rotation", _config_string, "\"sequence\"", "HALO_NET_MAP_ROTATION", _environment_value, _platform_all,
+		"How a dedicated server playlist advances between games:\n"
+		"\"sequence\" runs the playlist entries in order, looping back to the\n"
+		"start. \"shuffle\" chooses a random map and variant from the playlist\n"
+		"avoiding picking the exact same entry twice in a row (if playlist length > 1)." },
+	{ "network.map_voting", _config_boolean, "false", "HALO_NET_MAP_VOTING", _environment_set_is_true, _platform_all,
+		"Allow players to vote for the next map and gametype during the lobby countdown\n"
+		"by typing the option number in chat. Default is false." },
+	{ "network.map_vote_options", _config_integer, "3", "HALO_NET_MAP_VOTE_OPTIONS", _environment_value, _platform_all,
+		"Number of map/gametype candidates presented in lobby vote (2 to 5). Default is 3." },
+	{ "network.afk_timeout", _config_integer, "180", "HALO_NET_AFK_TIMEOUT", _environment_value, _platform_all,
+		"Inactivity timeout in seconds before an idle player is kicked from the game\n"
+		"(0 turns it off). At 30 seconds before the limit, a private warning is sent\n"
+		"to the player. The host is never kicked." },
+	{ "webhooks.discord", _config_string, "\"\"", "HALO_WEBHOOK_DISCORD", _environment_value, _platform_all,
+		"Discord webhook URL for server event notifications (matches, carnage, bans); empty disables." },
+	{ "webhooks.telegram", _config_string, "\"\"", "HALO_WEBHOOK_TELEGRAM", _environment_value, _platform_all,
+		"Telegram webhook URL for server event notifications; empty disables." },
+	{ "network.health_port", _config_integer, "0", "HALO_NET_HEALTH_PORT", _environment_value, _platform_all,
+		"TCP port for the HTTP health endpoint (GET /health returns the state,\n"
+		"the map, the players and the minutes left as JSON). 0 turns it off.\n"
+		"Bind to 0.0.0.0, so a container publishes it; it serves no other path.\n" },
+
 };
 
 #define NUMBER_OF_CONFIG_SETTINGS (sizeof(config_settings) / sizeof(config_settings[0]))
@@ -2088,6 +2135,10 @@ static const struct
 	{ "streamer.swearing", { "off", "severe", "strong", "mild", NULL }, NULL },
 	{ "streamer.insults", { "off", "severe", "strong", "mild", NULL }, NULL },
 	{ "crash_reports.upload", { "ask", "yes", "no", NULL }, NULL },
+	{ "match.vehicles", { "default", "none", "warthog", "ghost", "tank", "all", NULL }, NULL },
+	{ "match.weapons", { "normal", "pistols", "assault_rifles", "plasma_weapons", "sniping", "rockets", "shotguns", "classic", "heavy", NULL }, NULL },
+	{ "match.friendly_fire", { "off", "on", "shields_only", "explosives_only", NULL }, NULL },
+	{ "network.map_rotation", { "sequence", "shuffle", NULL }, NULL },
 };
 
 #define NUMBER_OF_CONFIG_WORDS (sizeof(config_words) / sizeof(config_words[0]))
