@@ -349,7 +349,12 @@ def generate_windows_build(n: Writer, sln: Any) -> None:
 
     # the high-res HUD's textures (port/assets/hud; port/linux/src/hud_hires.c)
     embedded_assets = hud_assets_build(n, "windows", BUILD / "generated" / "hud_hires_assets.c")
-    embedded_assets += server_ui_build(n, "windows", BUILD / "generated" / "server_ui_assets.c")
+    # a dedicated server's admin page (port/assets/server_ui; port/linux/src/server_http.c):
+    # as on Linux, this fork carries its dashboard as one self-contained page in
+    # port/linux/game/server_ui_embedded.c, which defines the same table; the
+    # generated one is left out then (they would collide at link)
+    if not (LINUX_DIR.parent / "linux" / "game" / "server_ui_embedded.c").is_file():
+        embedded_assets += server_ui_build(n, "windows", BUILD / "generated" / "server_ui_assets.c")
 
     # (a debug build checks its stack frames (/GS), and stops at the first
     # one overrun, as at the first failed assertion; a release build does

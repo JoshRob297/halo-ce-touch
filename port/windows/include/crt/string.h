@@ -11,3 +11,8 @@ declared here under its own name.
 #undef strnlen
 #include_next <string.h>
 #pragma pop_macro("strnlen")
+
+/* port: the POSIX spellings the port's shared sources use, which MSVC names
+   with an underscore (xbox_files.c and others) */
+#define strcasecmp _stricmp
+#define strncasecmp _strnicmp

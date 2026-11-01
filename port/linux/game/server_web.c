@@ -89,7 +89,9 @@ static int extract_json_string(const char *json, const char *key, char *out, siz
 }
 
 
+#ifndef _WIN32
 #include <sys/utsname.h>
+#endif
 
 static unsigned long get_process_rss_kb(void)
 {
@@ -109,6 +111,10 @@ static unsigned long get_process_rss_kb(void)
 
 static void get_system_node_info(char *buf, size_t size)
 {
+#ifdef _WIN32
+	/* port: Windows has no uname; the dashboard only shows this as a label */
+	snprintf(buf, size, "halo-node (Windows x86)");
+#else
 	struct utsname u;
 	if (uname(&u) == 0)
 	{
@@ -118,6 +124,7 @@ static void get_system_node_info(char *buf, size_t size)
 	{
 		snprintf(buf, size, "halo-node (Linux x86_64)");
 	}
+#endif
 }
 
 
